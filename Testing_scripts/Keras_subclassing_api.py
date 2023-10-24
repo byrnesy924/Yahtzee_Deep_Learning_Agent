@@ -2,6 +2,10 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+""" This is a python stub for experimenting with the Keras subclassing API. This was my first interaction with this
+API.
+"""
+
 # Fake environment with 13 states and 4 possible actions
 num_states = 18
 num_actions = 6
