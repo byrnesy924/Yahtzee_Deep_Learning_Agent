@@ -22,7 +22,7 @@ class QLearningModel(tf.keras.Model):
         super(QLearningModel, self).__init__()
         self.dense1 = tf.keras.layers.Dense(32, activation='relu')
         self.dense2 = tf.keras.layers.Dense(32, activation='relu')
-        self.dense3 = tf.keras.layers.Dense(32, activation='relu') # TODO experiment with changed arhcitecture
+        self.dense3 = tf.keras.layers.Dense(32, activation='relu')  # TODO experiment with changed arhcitecture
         self.output_layer = tf.keras.layers.Dense(num_actions)
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
@@ -33,7 +33,7 @@ class QLearningModel(tf.keras.Model):
         # Define the optimizer
         self.optimizer = tf.keras.optimizers.Adam()
 
-        """ All this code is deprecated - it works on random generating data"""
+        """ All this code is deprecated - it works by randomly generating data"""
         # Empty - batch fill with random generation
         # self.states = np.empty(num_samples, num_states)  # empty matrix of num_samples rows and num_states columns
         # self.actions = np.empty(num_samples, num_states)  # Vector of length num_samples
@@ -131,7 +131,7 @@ class NNQPlayer(Yahtzee):
         super(Yahtzee, self).__init__()
 
         # Hyper parameters
-        self.learning_rate = 0.001  # TODO experiment with hyper parameter
+        self.learning_rate = 0.001  # TODO experiment with hyper parameters
         self.gamma = 0.99
 
         # TODO experiment  6 outputs vs full 18 output
@@ -139,6 +139,8 @@ class NNQPlayer(Yahtzee):
         self.batch_size = 64
         self.action_size = 6
         self.state_size = 25
+        self.buffer_size = 32
+        # TODO - experiment with 32 or 16 - hyperparameter
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
         self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
@@ -192,7 +194,6 @@ class NNQPlayer(Yahtzee):
             # calculate the target q values by running the next states through the target DQN
             target_q = self.dqn_target(tf.convert_to_tensor(np.vstack(next_states), dtype=tf.float32))
 
-
             # Convert q values, ie. the DQN output into an action vector
             action_dice = tf.math.sigmoid(target_q[:, :-1])  # convert them to Binary - either choose the dice or dont
             action_choice = tf.math.round(target_q[:, -1:])
@@ -201,6 +202,7 @@ class NNQPlayer(Yahtzee):
             target_value = tf.reduce_sum(next_action * target_q, axis=1)
 
             target_value = (1 - dones) * self.gamma * target_value + rewards
+            # Sudo code - if done, then reward is just reward (1-done). If not, then add on the target q* learning rate
 
             main_q = self.dqn_model(tf.convert_to_tensor(np.vstack(states), dtype=tf.float32))
             main_value = tf.reduce_sum(actions * main_q, axis=1)
@@ -292,7 +294,7 @@ class NNQPlayer(Yahtzee):
         current_score = self.calculate_score()
         self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
 
-        reward = self.calculate_score() - current_score # TODO experiment with gained vs total score
+        reward = self.calculate_score() - current_score  # TODO experiment with gained vs total score
 
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
@@ -319,14 +321,17 @@ class NNQPlayer(Yahtzee):
             # reward += number_dice_picked_reward
 
             # New implimentation - just reward it for picking dice
-            reward += 0.1*(len(self.dice_saved) - current_number_dice_saved)
+            reward += 0.1 * (len(self.dice_saved) - current_number_dice_saved)
 
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
 
-    def run(self, number_of_epochs, games_per_epoch):
+    def run(self, number_of_epochs, games_per_epoch, save_model=True, save_results=True, verbose = False):
         """
 
+        :param verbose: (Bool) Whether to print the game and score to the command line
+        :param save_results: (Bool) pass argument to save results in csv format
+        :param save_model: (Bool) pass argument to save model in .keras format
         :param games_per_epoch: How many games to play between printing results to the screen
         :param number_of_epochs: The number of games to learn from
         :return:
@@ -362,22 +367,34 @@ class NNQPlayer(Yahtzee):
                         loss = None
                         if len(self.memory) > self.batch_size:
                             loss = self.update()
-                            if game % 8 == 0:  # TODO - experiment with 32 or 16 or even less REMEMBER TO CHANGE BACK
+                            if game % self.buffer_size == 0:
+                                # This buffer size is the distance between the target model and the actual model
+                                # Using the target model technique reduces the effect of correlation between
+                                # Sequential experiences, in other words, improving stability
                                 self.update_target()
                 final_scores.append(self.calculate_score())
                 scorecards.append(self.print_scores(verbose=False))
                 losses.append(loss)
-                print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
+                if verbose:
+                    print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
             print(f"Epoch {epoch} finished")
 
             # Log variables
             if epoch % 3 == 2:
-                start_time = time.perf_counter()
-                pd.DataFrame(self.memory).to_csv(f"Epoch {epoch} memory.csv")
-                print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
+                if save_results:
+                    # Form of logging - save to a csv
+                    start_time = time.perf_counter()
+                    pd.DataFrame(self.memory).to_csv(f"Epoch {epoch} memory.csv")
+                    print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
+        # Save the TF model
+        if save_model:
+            self.dqn_model.save_weights("Model\QNN_Yahtzee_weights.ckpt") #TODO create a system of variables and saves?
+
+        # Plot (and save) the results of training
         scores = pd.DataFrame([final_scores, losses]).transpose()
-        scores.to_csv("Final scores.csv")
+        if save_results:
+            scores.to_csv("Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(100).std()
 
@@ -386,16 +403,20 @@ class NNQPlayer(Yahtzee):
         plt.plot(scores["Rolling average"])
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
-        plt.show()
         plt.savefig("Final score.png")
-
-        plt.plot(losses)
         plt.show()
+        plt.close()
+
+        plt.figure(figsize=(20, 20))
+        plt.plot(losses)
         plt.savefig("Loss.png")
+        plt.show()
+        plt.close()
 
         return
 
 
+# For testing
 if __name__ == '__main__':
     start = time.perf_counter()
     agent = NNQPlayer()

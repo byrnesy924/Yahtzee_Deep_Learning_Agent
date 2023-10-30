@@ -1,5 +1,9 @@
 """
-Inspo: https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
+Inspiration for this project: https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
+Also: https://medium.com/p/b6bf911b6b2c <- great article on using a target model
+
+Plus playing Yahtzee with my Partner's family :)
+
 """
 # TODO set up a proper venv and requirements.txt and some acknowledgements
 
@@ -31,3 +35,8 @@ if __name__ == '__main__':
     df.to_csv("1000 Random games.csv")
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
     print(df.describe())
+
+    yahtzee_player = NNQPlayer()
+    start = time.perf_counter()
+    yahtzee_player.run(800, 128, save_results=False, save_model=True, verbose = False)
+    print(time.perf_counter() - start)
