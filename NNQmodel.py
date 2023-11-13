@@ -24,8 +24,6 @@ class QLearningModel(tf.keras.Model):
         self.dense2 = tf.keras.layers.Dense(32, activation='relu')
         self.dense3 = tf.keras.layers.Dense(32, activation='relu')  # TODO experiment with changed arhcitecture
         self.output_layer = tf.keras.layers.Dense(num_actions)
-        self.num_actions = num_actions
-        # if self.num_actions ==
 
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
@@ -436,7 +434,7 @@ class NNQPlayer(Yahtzee):
                 "Model\QNN_Yahtzee_weights.ckpt")  # TODO create a system of variables and saves?
 
         # Plot (and save) the results of training
-        scores = pd.DataFrame([final_scores, losses]).transpose()
+        scores = pd.DataFrame([final_scores, scorecards, losses], columns= ["Score", "Card", "Loss"]).transpose()
         if save_results:
             scores.to_csv("Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()

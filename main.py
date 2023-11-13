@@ -8,8 +8,9 @@ Plus playing Yahtzee with my Partner's family :)
 # TODO set up a proper venv and requirements.txt and some acknowledgements
 
 import time
-import tensorflow as tf
 import pandas as pd
+import cProfile
+import pstats
 
 from Yahtzee import Yahtzee
 from NNQmodel import NNQPlayer, QLearningModel
@@ -38,8 +39,19 @@ if __name__ == '__main__':
 
     yahtzee_player = NNQPlayer()
     start = time.perf_counter()
-    yahtzee_player.run(25, 64, save_results=False, save_model=True, verbose=False)
-    yahtzee_player.run(4, 32, save_results=True, save_model=False, verbose=True)
-
+    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
+    # Play games without updating:
+    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
+    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
+    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
+
+    # Diagnose / profile code
+    profile = cProfile.Profile()
+    profile.runcall(yahtzee_player.run(4,4))
+    ps = pstats.Stats(profile)
+    ps.print_stats()
