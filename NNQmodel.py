@@ -24,6 +24,9 @@ class QLearningModel(tf.keras.Model):
         self.dense2 = tf.keras.layers.Dense(32, activation='relu')
         self.dense3 = tf.keras.layers.Dense(32, activation='relu')  # TODO experiment with changed arhcitecture
         self.output_layer = tf.keras.layers.Dense(num_actions)
+        self.num_actions = num_actions
+        # if self.num_actions ==
+
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
 
@@ -124,9 +127,10 @@ class NNQPlayer(Yahtzee):
         )
         return res
 
-    def __init__(self):
+    def __init__(self, large_nnq_output=True):
         """
         Inherits from Yahtzee, stores
+        :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
         """
         super(Yahtzee, self).__init__()
 
@@ -135,9 +139,12 @@ class NNQPlayer(Yahtzee):
         self.gamma = 0.99
 
         # TODO experiment  6 outputs vs full 18 output
+        self.action_size = 18  # One for each dice and one for each selection
+        self.large_action_size = large_nnq_output  # This is a bool - store it
+        if not large_nnq_output:
+            self.action_size = 6
 
         self.batch_size = 64
-        self.action_size = 6
         self.state_size = 25
         self.buffer_size = 32
         # TODO - experiment with 32 or 16 - hyperparameter
@@ -157,17 +164,39 @@ class NNQPlayer(Yahtzee):
         """ Implements an epsilon method for choosing the action - if a random number is < epsilon (i.e. a small
             percentage of the time) choose something randomly in order to increase exploration
         """
-        q_values = self.dqn_model(tf.convert_to_tensor([state], dtype=tf.float32))
+        # call method depending on what kind of output is used
+        if self.large_action_size:
+            action, q_values = self.get_action_large_output(state)
+        else:
+            action, q_values = self.get_action_small_output(state)
+
         if np.random.rand() <= epsilon:
             action_dice = np.random.randint(0, 2, size=5)
             action_choice = np.random.randint(0, 13, size=1)
             action = np.concatenate([action_dice, action_choice])
-        else:
-            # action_dice = tf.math.sigmoid(q_values)[0:5]  # convert them to Binary - either choose the dice or don't
-            # action_choice = tf.math.round(q_values)
-            # action = tf.concat(tf.cast(action_dice, tf.float32), action_choice)
-            action = tf.round(q_values)[0]  # [0] because for whatever reason this is a nested object
 
+
+        return action, q_values
+
+    def get_action_small_output(self, state):
+        """ Method that gets the action and q values when the output layer is size 6
+        :param state:
+        :return:
+        """
+        q_values = self.dqn_model(tf.convert_to_tensor([state], dtype=tf.float32))
+        action = tf.round(q_values)[0]  # [0] to get the list out of the numpy array - hack for downstream in code
+
+        return action, q_values
+
+    def get_action_large_output(self, state):
+        """ Originally created all code with the small NNQ model output (6 nodes). This converts the large nnq model
+            model output into that same format
+        """
+        q_values = self.dqn_model(tf.convert_to_tensor([state], dtype=tf.float32))
+        state_choice = tf.math.argmax(q_values[0][-13:])  # Take the choice as the highest val in last 13 spots
+
+        state_choice = tf.cast(state_choice, tf.float32)
+        action = tf.concat([q_values[0][0:5], [state_choice]], axis=0)
         return action, q_values
 
     def append_sample(self, state, action, reward, next_state, done):
@@ -193,18 +222,32 @@ class NNQPlayer(Yahtzee):
 
             # calculate the target q values by running the next states through the target DQN
             target_q = self.dqn_target(tf.convert_to_tensor(np.vstack(next_states), dtype=tf.float32))
+            if self.large_action_size:
+                # This is the updated method four output size of 18
+                max_values = tf.reduce_max(target_q[:, -13:], axis=1)
+                mask = tf.cast(tf.equal(target_q[:, -13:], tf.expand_dims(max_values, axis=1)), dtype=tf.float32)
+                # mask is a matrix where the max Q value is a 1, and 0 all else
+                next_action = tf.concat([target_q[:, 0:5], mask], axis=1)
 
-            # Convert q values, ie. the DQN output into an action vector
-            action_dice = tf.math.sigmoid(target_q[:, :-1])  # convert them to Binary - either choose the dice or dont
-            action_choice = tf.math.round(target_q[:, -1:])
+                # Also have to one-hot encode actions. This is because they are stored
+                # As integers in a column, and this needs to be expanded
+                one_hot_actions = tf.one_hot(tf.transpose(tf.cast(actions[:, -1:], tf.int8)), depth=13, )
+                actions = tf.concat([actions[:, 0:5], one_hot_actions[0]], axis=1)
 
-            next_action = tf.concat([action_dice, action_choice], 1)
+            else:
+                # Convert q values, ie. the DQN output into an action vector
+                action_dice = tf.math.sigmoid(target_q[:, :-1])  # convert them to Binary - either choose the dice or dont
+                action_choice = tf.math.round(target_q[:, -1:])
+
+                next_action = tf.concat([action_dice, action_choice], 1)
+
             target_value = tf.reduce_sum(next_action * target_q, axis=1)
 
             target_value = (1 - dones) * self.gamma * target_value + rewards
             # Sudo code - if done, then reward is just reward (1-done). If not, then add on the target q* learning rate
 
             main_q = self.dqn_model(tf.convert_to_tensor(np.vstack(states), dtype=tf.float32))
+
             main_value = tf.reduce_sum(actions * main_q, axis=1)
 
             # hand coded mean squared error between the two functions - could also use tf function
@@ -326,7 +369,7 @@ class NNQPlayer(Yahtzee):
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
 
-    def run(self, number_of_epochs, games_per_epoch, save_model=True, save_results=True, verbose = False):
+    def run(self, number_of_epochs, games_per_epoch, save_model=True, save_results=True, verbose=False):
         """
 
         :param verbose: (Bool) Whether to print the game and score to the command line
@@ -389,7 +432,8 @@ class NNQPlayer(Yahtzee):
 
         # Save the TF model
         if save_model:
-            self.dqn_model.save_weights("Model\QNN_Yahtzee_weights.ckpt") #TODO create a system of variables and saves?
+            self.dqn_model.save_weights(
+                "Model\QNN_Yahtzee_weights.ckpt")  # TODO create a system of variables and saves?
 
         # Plot (and save) the results of training
         scores = pd.DataFrame([final_scores, losses]).transpose()

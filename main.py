@@ -30,7 +30,7 @@ def random_player_game(random_player: Yahtzee):
 if __name__ == '__main__':
     start = time.perf_counter()
     random_player = Yahtzee(player_type="random")
-    random_results = [random_player_game(random_player=random_player) for i in range(10000)]
+    random_results = [random_player_game(random_player=random_player) for i in range(5)]
     df = pd.DataFrame(random_results)
     df.to_csv("1000 Random games.csv")
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
@@ -38,5 +38,8 @@ if __name__ == '__main__':
 
     yahtzee_player = NNQPlayer()
     start = time.perf_counter()
-    yahtzee_player.run(800, 128, save_results=False, save_model=True, verbose = False)
-    print(time.perf_counter() - start)
+    yahtzee_player.run(25, 64, save_results=False, save_model=True, verbose=False)
+    yahtzee_player.run(4, 32, save_results=True, save_model=False, verbose=True)
+
+
+    print(f"Took {(time.perf_counter() - start)/3600} hours to run")
