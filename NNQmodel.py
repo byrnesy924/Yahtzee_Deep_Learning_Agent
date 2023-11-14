@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
@@ -109,7 +110,6 @@ class NNQPlayer(Yahtzee):
 
         current_dice_saved = [dice for dice in self.dice_saved]  # List that comes from Yahtzee class
         current_dice_saved.extend([0] * (5 - len(current_dice_saved)))  # extend dice saved until it is length 5
-
         # Turn state array
         game_state_array = np.array([self.turn_number, self.sub_turn] + current_dice_saved)
 
@@ -173,7 +173,6 @@ class NNQPlayer(Yahtzee):
             action_choice = np.random.randint(0, 13, size=1)
             action = np.concatenate([action_dice, action_choice])
 
-
         return action, q_values
 
     def get_action_small_output(self, state):
@@ -197,18 +196,26 @@ class NNQPlayer(Yahtzee):
         action = tf.concat([q_values[0][0:5], [state_choice]], axis=0)
         return action, q_values
 
-    def append_sample(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def append_sample(self, state, action, reward, next_state, done, q_values):
+        self.memory.append((state, action, reward, next_state, done, q_values))
 
     def update(self):
         """ Method updates the weights of the dqn in order to learn from rewards"""
-        mini_batch = random.sample(self.memory, self.batch_size)
+        # Use this numpy array and to list - previously used list comprehension for every one
+        # Which was very slow
+        mini_batch = np.array(random.sample(self.memory, self.batch_size), dtype=object)
+        states = mini_batch[:, 0]#.tolist()
+        actions = mini_batch[:, 1]#.tolist()
+        rewards = mini_batch[:, 2]#.tolist()
+        next_states = mini_batch[:, 3]#.tolist()
+        dones = mini_batch[:, 4]#.tolist()
 
-        states = [i[0] for i in mini_batch]
-        actions = [i[1] for i in mini_batch]
-        rewards = [i[2] for i in mini_batch]
-        next_states = [i[3] for i in mini_batch]
-        dones = [i[4] for i in mini_batch]
+        # mini_batch = random.sample(self.memory, self.batch_size)
+        # states = [i[0] for i in mini_batch]
+        # actions = [i[1] for i in mini_batch]
+        # rewards = [i[2] for i in mini_batch]
+        # next_states = [i[3] for i in mini_batch]
+        # dones = [i[4] for i in mini_batch]
 
         dqn_variable = self.dqn_model.trainable_variables
         with tf.GradientTape() as tape:
@@ -234,7 +241,8 @@ class NNQPlayer(Yahtzee):
 
             else:
                 # Convert q values, ie. the DQN output into an action vector
-                action_dice = tf.math.sigmoid(target_q[:, :-1])  # convert them to Binary - either choose the dice or dont
+                action_dice = tf.math.sigmoid(
+                    target_q[:, :-1])  # convert them to Binary - either choose the dice or dont
                 action_choice = tf.math.round(target_q[:, -1:])
 
                 next_action = tf.concat([action_dice, action_choice], 1)
@@ -270,11 +278,13 @@ class NNQPlayer(Yahtzee):
 
         if isinstance(action, np.ndarray):
             action_picked = action[-1]
+            action_dice = action[0:5]
         else:
             action_picked = action[-1].numpy()
+            action_dice = action[0:5].numpy()
 
-        # If not correct turn then make -1
-        if self.sub_turn != 3 or action_picked > 12 or action_picked < -1:
+            # If not correct turn then make -1
+        if self.sub_turn != 3 or -1 > action_picked > 12:
             # Only pick a score if the sub turn is three other wise only pick dice
             # Also if the action picked is out of range then make it -1
             action_picked = -1
@@ -284,27 +294,16 @@ class NNQPlayer(Yahtzee):
         active_roll_mapper = {1: "first_roll", 2: "second_roll", 3: "third_roll"}
         current_roll = self.__getattribute__(active_roll_mapper[self.sub_turn])
 
-        if isinstance(action, np.ndarray):
-            action_dice = action[0:5]
-        else:
-            action_dice = action[0:5].numpy()  # Handle when action is a tensor
-
         if len(action_dice) > 5:
             raise Exception(f"Picked more than 5 dice. Picked: {action_dice} and action was {action}")
 
         # Handle if floats come out of the dice choice - this might be redundant code
-        for index, item in enumerate(action_dice):
-            if item > 0.9:
-                action_dice[index] = 1
-            else:
-                action_dice[index] = 0
+        action_dice = np.where(action_dice > 0.9, 1, 0)
 
-        # Bodge mapper to convert the words "one","two", etc. to indexes in the np array
-        key_mapper = {"one": 0, "two": 1, "three": 2, "four": 3, "five": 4}
-        for key, value in current_roll.items():
+        # For each dice in the current roll, if it is 0 (i.e. already chosen) then make -1
+        for index, value in enumerate(current_roll.values()):
             if value == 0:
-                indexer = key_mapper[key]
-                action_dice[indexer] = -1
+                action_dice[index] = -1
 
         # Our next move is the one with the highest probability after removing all illegal ones.
         # score move
@@ -318,9 +317,8 @@ class NNQPlayer(Yahtzee):
                 int(action_picked)]  # string of which one to pick - int because action is float
 
         # Dice move
-        dice_move = {"one": 0, "two": 0, "three": 0, "four": 0, "five": 0}
-        for key, act in zip(dice_move, action_dice):
-            dice_move[key] = act
+        dice_move_names = ["one", "two", "three", "four", "five"]
+        dice_move = dict(zip(dice_move_names, action_dice))
 
         return score_move, dice_move, action_picked
 
@@ -401,7 +399,7 @@ class NNQPlayer(Yahtzee):
                         done = False
                         if i == 12 and j == 2:
                             done = True  # The game is done at this stage
-                        self.append_sample(state, action, reward, next_state, done)
+                        self.append_sample(state, action, reward, next_state, done, q_values)
 
                         score += reward
 
@@ -430,18 +428,20 @@ class NNQPlayer(Yahtzee):
 
         # Save the TF model
         if save_model:
-            self.dqn_model.save_weights(
-                "Model\QNN_Yahtzee_weights.ckpt")  # TODO create a system of variables and saves?
+            self.dqn_model.save_weights("Model\QNN_Yahtzee_weights.ckpt") # TODO create a system of variables and saves?
 
         # Plot (and save) the results of training
-        scores = pd.DataFrame([final_scores, scorecards, losses], columns= ["Score", "Card", "Loss"]).transpose()
+        scores = pd.DataFrame([final_scores, scorecards, losses])\
+            .transpose()\
+            .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
+
         if save_results:
             scores.to_csv("Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(100).std()
 
         plt.figure(figsize=(20, 20))
-        plt.plot(final_scores)
+        plt.plot(scores["Scores"])
         plt.plot(scores["Rolling average"])
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])

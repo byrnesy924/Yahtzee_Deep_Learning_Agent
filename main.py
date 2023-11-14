@@ -31,7 +31,7 @@ def random_player_game(random_player: Yahtzee):
 if __name__ == '__main__':
     start = time.perf_counter()
     random_player = Yahtzee(player_type="random")
-    random_results = [random_player_game(random_player=random_player) for i in range(5)]
+    random_results = [random_player_game(random_player=random_player) for i in range(100)]
     df = pd.DataFrame(random_results)
     df.to_csv("1000 Random games.csv")
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
@@ -39,6 +39,17 @@ if __name__ == '__main__':
 
     yahtzee_player = NNQPlayer()
     start = time.perf_counter()
+
+    # Diagnose / profile code
+    profile = cProfile.Profile()
+
+    def wrapper():
+        yahtzee_player.run(4, 4)
+        return
+    profile.runcall(wrapper)
+    ps = pstats.Stats(profile)
+    ps.print_stats()
+
     yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
     yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
     # Play games without updating:
@@ -50,8 +61,4 @@ if __name__ == '__main__':
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
 
-    # Diagnose / profile code
-    profile = cProfile.Profile()
-    profile.runcall(yahtzee_player.run(4,4))
-    ps = pstats.Stats(profile)
-    ps.print_stats()
+
