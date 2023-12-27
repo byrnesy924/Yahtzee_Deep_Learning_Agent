@@ -50,15 +50,22 @@ if __name__ == '__main__':
     ps = pstats.Stats(profile)
     ps.print_stats()
 
-    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
-    # Play games without updating:
-    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
-    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(8, 64, save_results=False, save_model=True, verbose=False)
-    yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+
+    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
+    # # Play games without updating:
+    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
+    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
+    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(128, 16, save_results=True, save_model=False, verbose=False)
+    print("Weights of the model:\n")
+    print(yahtzee_player.dqn_model.get_weights())
+
+    yahtzee_player.plot_scores_over_time()
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
+
 
 

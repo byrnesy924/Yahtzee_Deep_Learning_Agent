@@ -133,10 +133,12 @@ class NNQPlayer(Yahtzee):
         super(Yahtzee, self).__init__()
 
         # Hyper parameters
-        self.learning_rate = 0.001  # TODO experiment with hyper parameters
+        self.learning_rate = 0.000001  # TODO experiment with hyper parameters
+        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output
+        # https://stackoverflow.com/questions/39714374/nan-results-in-tensorflow-neural-network?rq=4
         self.gamma = 0.99
 
-        # TODO experiment  6 outputs vs full 18 output
+        # Done experiment  6 outputs vs full 18 output - refactored for 18
         self.action_size = 18  # One for each dice and one for each selection
         self.large_action_size = large_nnq_output  # This is a bool - store it
         if not large_nnq_output:
@@ -153,7 +155,36 @@ class NNQPlayer(Yahtzee):
 
         self.memory = deque(maxlen=2000)
 
+        # Added these dataframes to track scores and plot them over time
+        self.score_tracker_special = pd.DataFrame(
+            columns=["3OAK", "4OAK", "LSTR", "HSTR", "FH", "YTZ"])
+        self.score_tracker_singles = pd.DataFrame(
+            columns=range(1, 7)
+        )
+
         super().__init__()
+
+    def count_scores_to_plot_over_time(self):
+        """This method records how many and how effective the scoring is over time"""
+        list_of_special = ["three_of_a_kind", "four_of_a_kind", "full_house", "small_straight", "large_straight",
+                           "yahtzee"]
+        special_scores = [1 if self.__getattribute__(item) > 0 else 0 for item in list_of_special]
+        df_special_score = pd.DataFrame(special_scores, index=self.score_tracker_special.columns).transpose()
+
+        single_scores_names = ["ones", "twos", "threes", "fours", "fives", "sixes"]
+        single_scores = [self.__getattribute__(score) for score in single_scores_names ]
+        df_single_scores = pd.DataFrame(single_scores, index=self.score_tracker_singles.columns).transpose()
+
+        pd.concat([self.score_tracker_special, df_special_score], inplace=True, axis=1)  # unsure why pycharm cant see
+        pd.concat([self.score_tracker_singles, df_single_scores], inplace=True, axis=1)  # these are DataFrames
+
+    def plot_scores_over_time(self):
+        plot_special_scores = self.score_tracker_special.cumsum()
+        plot_special_scores.plot(title="Special scores over time")
+
+        # Plot a rolling average of these scores as they are discrete
+        plot_single_scores = self.score_tracker_singles.rolling.mean(8)
+        plot_single_scores.plot(title="Single scores over time")
 
     def update_target(self):
         self.dqn_target.set_weights(self.dqn_model.get_weights())
@@ -190,6 +221,12 @@ class NNQPlayer(Yahtzee):
             model output into that same format
         """
         q_values = self.dqn_model(tf.convert_to_tensor([state], dtype=tf.float32))
+
+        if True is np.isnan(q_values):
+            print("Found NaNs in the q values! They are:\n")
+            print(q_values)
+            print("The state passed in: \n")
+            print(state)
         state_choice = tf.math.argmax(q_values[0][-13:])  # Take the choice as the highest val in last 13 spots
 
         state_choice = tf.cast(state_choice, tf.float32)
@@ -204,11 +241,11 @@ class NNQPlayer(Yahtzee):
         # Use this numpy array and to list - previously used list comprehension for every one
         # Which was very slow
         mini_batch = np.array(random.sample(self.memory, self.batch_size), dtype=object)
-        states = mini_batch[:, 0]#.tolist()
-        actions = mini_batch[:, 1]#.tolist()
-        rewards = mini_batch[:, 2]#.tolist()
-        next_states = mini_batch[:, 3]#.tolist()
-        dones = mini_batch[:, 4]#.tolist()
+        states = mini_batch[:, 0]
+        actions = mini_batch[:, 1].tolist()  # This needs to list as it is an array of tensors AND arrays - TF dislikes
+        rewards = mini_batch[:, 2]
+        next_states = mini_batch[:, 3]
+        dones = mini_batch[:, 4]
 
         # mini_batch = random.sample(self.memory, self.batch_size)
         # states = [i[0] for i in mini_batch]
@@ -220,7 +257,6 @@ class NNQPlayer(Yahtzee):
         dqn_variable = self.dqn_model.trainable_variables
         with tf.GradientTape() as tape:
             tape.watch(dqn_variable)
-
             rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)
             actions = tf.convert_to_tensor(actions, dtype=tf.float32)
             dones = tf.convert_to_tensor(dones, dtype=tf.float32)
@@ -396,6 +432,14 @@ class NNQPlayer(Yahtzee):
                         # moving directly changes the game state stored in this object
                         next_state = self.game_state_to_nn_input()
 
+                        # December 27 - Identifying why NaN appear and NNQ stops playing
+                        if True in np.isnan(action):
+                            print("Found a NaN!\n", "Epoch is: ", epoch, "\nGame is: ", game)
+                            print("state, action, q values:")
+                            print(state)
+                            print(action)
+                            print(q_values)
+
                         done = False
                         if i == 12 and j == 2:
                             done = True  # The game is done at this stage
@@ -423,16 +467,19 @@ class NNQPlayer(Yahtzee):
                 if save_results:
                     # Form of logging - save to a csv
                     start_time = time.perf_counter()
-                    pd.DataFrame(self.memory).to_csv(f"Epoch {epoch} memory.csv")
+                    if not os.path.isdir("Memory"):
+                        os.makedirs("Memory")
+                    pd.DataFrame(self.memory).to_csv(f"Memory\\Epoch {epoch} memory.csv")
                     print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
         # Save the TF model
         if save_model:
-            self.dqn_model.save_weights("Model\QNN_Yahtzee_weights.ckpt") # TODO create a system of variables and saves?
+            self.dqn_model.save_weights(
+                "Model\QNN_Yahtzee_weights.ckpt")  # TODO create a system of variables and saves?
 
         # Plot (and save) the results of training
-        scores = pd.DataFrame([final_scores, scorecards, losses])\
-            .transpose()\
+        scores = pd.DataFrame([final_scores, scorecards, losses]) \
+            .transpose() \
             .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
 
         if save_results:
