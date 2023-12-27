@@ -44,7 +44,7 @@ if __name__ == '__main__':
     profile = cProfile.Profile()
 
     def wrapper():
-        yahtzee_player.run(4, 4)
+        yahtzee_player.run(8, 8)
         return
     profile.runcall(wrapper)
     ps = pstats.Stats(profile)
@@ -59,11 +59,13 @@ if __name__ == '__main__':
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
     # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(128, 16, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(256, 32, save_results=True, save_model=False, verbose=False)
     print("Weights of the model:\n")
     print(yahtzee_player.dqn_model.get_weights())
 
     yahtzee_player.plot_scores_over_time()
+
+    # TODO impliment hyper-paramter testing
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
 

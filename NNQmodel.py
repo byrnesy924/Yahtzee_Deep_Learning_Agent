@@ -60,7 +60,11 @@ class QLearningModel(tf.keras.Model):
 
     @tf.function
     def train_step(self, states, actions, rewards):
-        """ Training step function"""
+        """ Training step function
+        This is deprecated - the actual method is implimented in the NNQ object, and uses a target
+        model and an actual model. This is "Double Deep Q learning" See here https://towardsdatascience.com/double-deep-q-networks-905dd8325412
+
+        """
         with tf.GradientTape() as tape:
             q_values = self(states)
             # one_hot_actions = tf.one_hot(actions, num_actions) # only necessary when it was choosing 1 action
@@ -72,6 +76,7 @@ class QLearningModel(tf.keras.Model):
         self.optimizer.apply_gradients(zip(self.gradients, self.trainable_variables))
         return loss
 
+    # This train method is deprecated
     def train_model_epoch(self, num_epochs, num_samples, batch_size):
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
@@ -87,6 +92,60 @@ class NNQPlayer(Yahtzee):
     """
     Implements a Yahtzee player based on a Reinforcement Neural Network learning the Yahtzee Q function
     """
+
+    def __init__(self, large_nnq_output=True,
+                 learning_rate=0.000001,
+                 gamma=0.99,
+                 reward_for_all_dice=5,
+                 punish_for_not_picking_dice=False,
+                 reward_factor_for_initial_dice_picked=0.1,
+                 reward_factor_for_picking_choice_correctly=2,
+                 length_of_memory=2000,
+                 batch_size=64
+                 ):
+        """
+        Inherits from Yahtzee, stores
+        :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
+        """
+        super(Yahtzee, self).__init__()
+
+        # Hyper parameters
+        self.learning_rate = learning_rate
+        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output
+        # https://stackoverflow.com/questions/39714374/nan-results-in-tensorflow-neural-network?rq=4
+        self.gamma = gamma
+
+        # Done experiment  6 outputs vs full 18 output - refactored for 18
+        self.action_size = 18  # One for each dice and one for each selection
+        self.large_action_size = large_nnq_output  # This is a bool - store it
+        if not large_nnq_output:
+            self.action_size = 6
+
+        self.batch_size = batch_size # For learning
+        self.state_size = 25
+        self.buffer_size = 32
+
+        # Hyperparameters of Reward Structure
+        self.reward_for_all_dice = reward_for_all_dice  # the amount it gets for picking a dice
+        self.punish_for_not_picking_dice = punish_for_not_picking_dice  # If it doesnt pick dice punish it
+        self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked  # reward for each inital dice chosen (not at end of round)
+        self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly  # Reward it for actually choosing something
+
+        self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
+        self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
+        self.optimizers = tf.keras.optimizers.Adam(learning_rate=self.learning_rate, )
+
+        # Memory size to train on
+        self.memory = deque(maxlen=length_of_memory)
+
+        # Added these dataframes to track scores and plot them over time
+        self.score_tracker_special = pd.DataFrame(
+            columns=["3OAK", "4OAK", "LSTR", "HSTR", "FH", "YTZ"])
+        self.score_tracker_singles = pd.DataFrame(
+            columns=range(1, 7)
+        )
+
+        super().__init__()
 
     def game_state_to_nn_input(self) -> np.ndarray:
         """
@@ -124,67 +183,6 @@ class NNQPlayer(Yahtzee):
             [game_state_array, dice_state_array, player_state_array], dtype=object
         )
         return res
-
-    def __init__(self, large_nnq_output=True):
-        """
-        Inherits from Yahtzee, stores
-        :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
-        """
-        super(Yahtzee, self).__init__()
-
-        # Hyper parameters
-        self.learning_rate = 0.000001  # TODO experiment with hyper parameters
-        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output
-        # https://stackoverflow.com/questions/39714374/nan-results-in-tensorflow-neural-network?rq=4
-        self.gamma = 0.99
-
-        # Done experiment  6 outputs vs full 18 output - refactored for 18
-        self.action_size = 18  # One for each dice and one for each selection
-        self.large_action_size = large_nnq_output  # This is a bool - store it
-        if not large_nnq_output:
-            self.action_size = 6
-
-        self.batch_size = 64
-        self.state_size = 25
-        self.buffer_size = 32
-        # TODO - experiment with 32 or 16 - hyperparameter
-
-        self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
-        self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
-        self.optimizers = tf.keras.optimizers.Adam(learning_rate=self.learning_rate, )
-
-        self.memory = deque(maxlen=2000)
-
-        # Added these dataframes to track scores and plot them over time
-        self.score_tracker_special = pd.DataFrame(
-            columns=["3OAK", "4OAK", "LSTR", "HSTR", "FH", "YTZ"])
-        self.score_tracker_singles = pd.DataFrame(
-            columns=range(1, 7)
-        )
-
-        super().__init__()
-
-    def count_scores_to_plot_over_time(self):
-        """This method records how many and how effective the scoring is over time"""
-        list_of_special = ["three_of_a_kind", "four_of_a_kind", "full_house", "small_straight", "large_straight",
-                           "yahtzee"]
-        special_scores = [1 if self.__getattribute__(item) > 0 else 0 for item in list_of_special]
-        df_special_score = pd.DataFrame(special_scores, index=self.score_tracker_special.columns).transpose()
-
-        single_scores_names = ["ones", "twos", "threes", "fours", "fives", "sixes"]
-        single_scores = [self.__getattribute__(score) for score in single_scores_names ]
-        df_single_scores = pd.DataFrame(single_scores, index=self.score_tracker_singles.columns).transpose()
-
-        pd.concat([self.score_tracker_special, df_special_score], inplace=True, axis=1)  # unsure why pycharm cant see
-        pd.concat([self.score_tracker_singles, df_single_scores], inplace=True, axis=1)  # these are DataFrames
-
-    def plot_scores_over_time(self):
-        plot_special_scores = self.score_tracker_special.cumsum()
-        plot_special_scores.plot(title="Special scores over time")
-
-        # Plot a rolling average of these scores as they are discrete
-        plot_single_scores = self.score_tracker_singles.rolling.mean(8)
-        plot_single_scores.plot(title="Single scores over time")
 
     def update_target(self):
         self.dqn_target.set_weights(self.dqn_model.get_weights())
@@ -240,6 +238,7 @@ class NNQPlayer(Yahtzee):
         """ Method updates the weights of the dqn in order to learn from rewards"""
         # Use this numpy array and to list - previously used list comprehension for every one
         # Which was very slow
+        # memory is a deque object which has a max length of 2000
         mini_batch = np.array(random.sample(self.memory, self.batch_size), dtype=object)
         states = mini_batch[:, 0]
         actions = mini_batch[:, 1].tolist()  # This needs to list as it is an array of tensors AND arrays - TF dislikes
@@ -254,6 +253,8 @@ class NNQPlayer(Yahtzee):
         # next_states = [i[3] for i in mini_batch]
         # dones = [i[4] for i in mini_batch]
 
+        # Run the update function
+        # Moved this off into another method to use the tf.function decorator and improve performance
         dqn_variable = self.dqn_model.trainable_variables
         with tf.GradientTape() as tape:
             tape.watch(dqn_variable)
@@ -381,13 +382,13 @@ class NNQPlayer(Yahtzee):
             # Note that sub turn is INCREMENTED after self.turn which is above, therefore check if sub turn is 1
             # If the network picked an action at the end, reward it
             if 0 < action_picked < 14:
-                reward *= 2  # Double the reward for successfully choosing a score
+                reward *= self.reward_factor_for_picking_choice_correctly  # Double the reward for successfully choosing a score
 
             # Current Implementation - If it picked all its dice, reward it more. If it didn't, punish it
             if self.sub_turn == 1 and len(self.dice_saved) == 5:
-                reward += 3
-            # else:
-            #     reward -= 1
+                reward += 3  # self.reward_for_all_dice
+            elif self.punish_for_not_picking_dice and current_number_dice_saved > 0:
+                reward -= 1
         else:
             # If it is not the last sub turn, reward it very slightly for picking its dice
             # Map this to: 1 dice = 0.1, 2 dice = 0.2, 3 dice = 0.3, 4 dice = 0.2, 5 dice = 0.1
@@ -396,7 +397,7 @@ class NNQPlayer(Yahtzee):
             # reward += number_dice_picked_reward
 
             # New implimentation - just reward it for picking dice
-            reward += 0.1 * (len(self.dice_saved) - current_number_dice_saved)
+            reward += self.reward_factor_for_initial_dice_picked * (len(self.dice_saved) - current_number_dice_saved)
 
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
@@ -447,16 +448,19 @@ class NNQPlayer(Yahtzee):
 
                         score += reward
 
-                        loss = None
-                        if len(self.memory) > self.batch_size:
-                            loss = self.update()
-                            if game % self.buffer_size == 0:
-                                # This buffer size is the distance between the target model and the actual model
-                                # Using the target model technique reduces the effect of correlation between
-                                # Sequential experiences, in other words, improving stability
-                                self.update_target()
+                loss = None
+                if len(self.memory) > self.batch_size:
+                    print(f"Updating the model: Epoch {epoch}, Game {game}")
+                    loss = self.update()
+                    if game % self.buffer_size == 0:
+                        print(f"Updating the target: Epoch {epoch}, Game {game}")
+                        # This buffer size is the distance between the target model and the actual model
+                        # Using the target model technique reduces the effect of correlation between
+                        # Sequential experiences, in other words, improving stability
+                        self.update_target()
                 final_scores.append(self.calculate_score())
                 scorecards.append(self.print_scores(verbose=False))
+                self.count_scores_to_plot_over_time() # Appends relevant scores to a DataFrame for plting
                 losses.append(loss)
                 if verbose:
                     print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
@@ -504,13 +508,44 @@ class NNQPlayer(Yahtzee):
 
         return
 
+    def count_scores_to_plot_over_time(self):
+        """This method records how many and how effective the scoring is over time"""
+        list_of_special = ["three_of_a_kind", "four_of_a_kind", "full_house", "small_straight", "large_straight",
+                           "yahtzee"]
+        special_scores = [1 if self.__getattribute__(item) > 0 else 0 for item in list_of_special]
+
+        df_special_score = pd.DataFrame(special_scores).transpose()
+        df_special_score.columns = self.score_tracker_special.columns
+
+        single_scores_names = ["ones", "twos", "threes", "fours", "fives", "sixes"]
+        single_scores = [self.__getattribute__(score) for score in single_scores_names]
+        df_single_scores = pd.DataFrame(single_scores).transpose()
+        df_single_scores.columns = self.score_tracker_singles.columns
+
+        self.score_tracker_special = pd.concat([self.score_tracker_special, df_special_score])  # unsure why pycharm cant see
+        self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores])  # these are DataFrames
+
+    def plot_scores_over_time(self):
+        plt.figure(figsize=(20, 20))
+        plot_special_scores = self.score_tracker_special.cumsum()
+        plot_special_scores.plot(title="Special scores over time")
+        plt.savefig("Special scores over time.png")
+        plt.show()
+        plt.close()
+
+        # Plot a rolling average of these scores as they are discrete
+        plt.figure(figsize=(20, 20))
+        plot_single_scores = self.score_tracker_singles.rolling.mean(8)
+        plot_single_scores.plot(title="Single scores over time")
+        plt.savefig("Single scores over time.png")
+        plt.show()
+        plt.close()
+
 
 # For testing
 if __name__ == '__main__':
     start = time.perf_counter()
     agent = NNQPlayer()
     agent.run(75, 64)
-
-    # TODO Plot the number of straights, Yahtzee's etc that it gets over time
 
     print(f"Took {time.perf_counter() - start} seconds")
