@@ -121,7 +121,7 @@ class NNQPlayer(Yahtzee):
         if not large_nnq_output:
             self.action_size = 6
 
-        self.batch_size = batch_size # For learning
+        self.batch_size = batch_size  # For learning
         self.state_size = 25
         self.buffer_size = 32
 
@@ -450,10 +450,8 @@ class NNQPlayer(Yahtzee):
 
                 loss = None
                 if len(self.memory) > self.batch_size:
-                    print(f"Updating the model: Epoch {epoch}, Game {game}")
                     loss = self.update()
                     if game % self.buffer_size == 0:
-                        print(f"Updating the target: Epoch {epoch}, Game {game}")
                         # This buffer size is the distance between the target model and the actual model
                         # Using the target model technique reduces the effect of correlation between
                         # Sequential experiences, in other words, improving stability
@@ -497,13 +495,13 @@ class NNQPlayer(Yahtzee):
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
         plt.savefig("Final score.png")
-        plt.show()
+        # plt.show()
         plt.close()
 
         plt.figure(figsize=(20, 20))
         plt.plot(losses)
         plt.savefig("Loss.png")
-        plt.show()
+        # plt.show()
         plt.close()
 
         return
@@ -526,16 +524,14 @@ class NNQPlayer(Yahtzee):
         self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores])  # these are DataFrames
 
     def plot_scores_over_time(self):
-        plt.figure(figsize=(20, 20))
         plot_special_scores = self.score_tracker_special.cumsum()
         plot_special_scores.plot(title="Special scores over time")
         plt.savefig("Special scores over time.png")
-        plt.show()
         plt.close()
 
         # Plot a rolling average of these scores as they are discrete
         plt.figure(figsize=(20, 20))
-        plot_single_scores = self.score_tracker_singles.rolling.mean(8)
+        plot_single_scores = self.score_tracker_singles.rolling(8).mean
         plot_single_scores.plot(title="Single scores over time")
         plt.savefig("Single scores over time.png")
         plt.show()
