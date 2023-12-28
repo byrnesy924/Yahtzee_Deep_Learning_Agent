@@ -59,11 +59,11 @@ if __name__ == '__main__':
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
     # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
+    yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {512*32} games")
 
-    yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
 
     print("Weights of the model:\n")
     print(yahtzee_player.dqn_model.get_weights())
