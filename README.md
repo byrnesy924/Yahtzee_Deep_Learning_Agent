@@ -3,3 +3,6 @@ This repo holds both a rudimentary version of Yatzhee and my first experimentati
 
 
 Inspiration, Inception of idea, presented initial results to work colleagues in a presentation (maybe link presentation? might need to remove branding)
+
+
+[[Final score.png]]
