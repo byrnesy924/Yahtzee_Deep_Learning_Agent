@@ -489,19 +489,21 @@ class NNQPlayer(Yahtzee):
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(100).std()
 
+        # TODO put the code below in a function so that it can be plotted each epoch and so on
+
         plt.figure(figsize=(20, 20))
         plt.plot(scores["Scores"])
         plt.plot(scores["Rolling average"])
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
         plt.savefig("Final score.png")
-        plt.show()
+        # plt.show()
         plt.close()
 
         plt.figure(figsize=(20, 20))
         plt.plot(losses)
         plt.savefig("Loss.png")
-        plt.show()
+        # plt.show()
         plt.close()
 
         return
@@ -524,13 +526,17 @@ class NNQPlayer(Yahtzee):
         self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores])  # these are DataFrames
 
     def plot_scores_over_time(self):
-        plot_special_scores = pd.DataFrame(self.score_tracker_special.cumsum())
+        plot_special_scores = self.score_tracker_special.cumsum()
+        plot_special_scores.reset_index(inplace=True)
+        plot_special_scores.fillna(0, inplace=True)
         plot_special_scores.plot(title="Special scores over time")
         plt.savefig("Special scores over time.png")
         plt.close()
 
         # Plot a rolling average of these scores as they are discrete
         plot_single_scores = self.score_tracker_singles.rolling(8).mean()
+        plot_single_scores.reset_index(inplace=True)
+        plot_single_scores.fillna(0, inplace=True)
         plot_single_scores.plot(title="Single scores over time")
         plt.savefig("Single scores over time.png")
         plt.close()

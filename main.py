@@ -42,13 +42,12 @@ if __name__ == '__main__':
 
     # Diagnose / profile code
     profile = cProfile.Profile()
-
     def wrapper():
-        yahtzee_player.run(8, 8)
+        yahtzee_player.run(4, 2)
         return
-    profile.runcall(wrapper)
-    ps = pstats.Stats(profile)
-    ps.print_stats()
+    # profile.runcall(wrapper)
+    # ps = pstats.Stats(profile)
+    # ps.print_stats()
 
 
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
@@ -71,7 +70,6 @@ if __name__ == '__main__':
     yahtzee_player.plot_scores_over_time()
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
-
 
     # TODO impliment hyper-paramter testing
 
