@@ -6,6 +6,7 @@ import random
 import matplotlib.pyplot as plt
 import time
 
+from datetime import datetime
 from collections import deque
 
 from Yahtzee import Yahtzee
@@ -101,7 +102,9 @@ class NNQPlayer(Yahtzee):
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
                  length_of_memory=2000,
-                 batch_size=64
+                 batch_size=64,
+                 show_figures=False,
+                 name="Basic"
                  ):
         """
         Inherits from Yahtzee, stores
@@ -144,6 +147,11 @@ class NNQPlayer(Yahtzee):
         self.score_tracker_singles = pd.DataFrame(
             columns=range(1, 7)
         )
+
+        # Locations to save memory and results
+        self.memory_path = "Memory\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
+        self.results_path = "Results\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
+        self.show_figures = show_figures
 
         super().__init__()
 
@@ -434,6 +442,7 @@ class NNQPlayer(Yahtzee):
                         next_state = self.game_state_to_nn_input()
 
                         # December 27 - Identifying why NaN appear and NNQ stops playing
+                        # Reason - the learning value was too high and the model was diverging
                         if True in np.isnan(action):
                             print("Found a NaN!\n", "Epoch is: ", epoch, "\nGame is: ", game)
                             print("state, action, q values:")
@@ -458,26 +467,26 @@ class NNQPlayer(Yahtzee):
                         self.update_target()
                 final_scores.append(self.calculate_score())
                 scorecards.append(self.print_scores(verbose=False))
-                self.count_scores_to_plot_over_time() # Appends relevant scores to a DataFrame for plting
+                self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
                 losses.append(loss)
                 if verbose:
                     print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
             print(f"Epoch {epoch} finished")
 
             # Log variables
-            if epoch % 3 == 2:
+            if epoch % 16 == 2:  # updated to 16 to save disk space of memory
                 if save_results:
                     # Form of logging - save to a csv
-                    start_time = time.perf_counter()
+                    # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     if not os.path.isdir("Memory"):
                         os.makedirs("Memory")
-                    pd.DataFrame(self.memory).to_csv(f"Memory\\Epoch {epoch} memory.csv")
-                    print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
+                    pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(f"{self.memory_path}\\Epoch {epoch} memory.csv")
+                    # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
         # Save the TF model
         if save_model:
             self.dqn_model.save_weights(
-                "Model\QNN_Yahtzee_weights.ckpt")  # TODO create a system of variables and saves?
+                f"{self.results_path}\\\QNN_Yahtzee_weights.ckpt")
 
         # Plot (and save) the results of training
         scores = pd.DataFrame([final_scores, scorecards, losses]) \
@@ -485,25 +494,37 @@ class NNQPlayer(Yahtzee):
             .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
 
         if save_results:
-            scores.to_csv("Final scores.csv")
+            scores.to_csv(f"{self.results_path}\\Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(100).std()
 
-        # TODO put the code below in a function so that it can be plotted each epoch and so on
+        self.plot_games_over_time(scores=scores, losses=losses)  # Coupled with code above
+        self.plot_scores_over_time()
 
+        return
+
+    def plot_games_over_time(self, scores, losses):
+        """
+        Method that plots game scores over time + average +- 1 standard deviation.
+        :param scores: (pd.DataFrame) Coupled with scores from run method - calculated there
+        :param losses: (pd.DataFrame) Coupled with losses from run method - calculated there
+        :return: None
+        """
         plt.figure(figsize=(20, 20))
         plt.plot(scores["Scores"])
         plt.plot(scores["Rolling average"])
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
-        plt.savefig("Final score.png")
-        # plt.show()
+        plt.savefig(f"{self.results_path}\\Final score.png")
+        if self.show_figures:
+            plt.show()
         plt.close()
 
         plt.figure(figsize=(20, 20))
         plt.plot(losses)
-        plt.savefig("Loss.png")
-        # plt.show()
+        plt.savefig(f"{self.results_path}\\Loss.png")
+        if self.show_figures:
+            plt.show()
         plt.close()
 
         return
@@ -522,7 +543,8 @@ class NNQPlayer(Yahtzee):
         df_single_scores = pd.DataFrame(single_scores).transpose()
         df_single_scores.columns = self.score_tracker_singles.columns
 
-        self.score_tracker_special = pd.concat([self.score_tracker_special, df_special_score])  # unsure why pycharm cant see
+        self.score_tracker_special = pd.concat(
+            [self.score_tracker_special, df_special_score])  # unsure why pycharm cant see
         self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores])  # these are DataFrames
 
     def plot_scores_over_time(self):
@@ -530,16 +552,23 @@ class NNQPlayer(Yahtzee):
         plot_special_scores.reset_index(inplace=True)
         plot_special_scores.fillna(0, inplace=True)
         plot_special_scores.plot(title="Special scores over time")
-        plt.savefig("Special scores over time.png")
+        plt.savefig(f"{self.results_path}\\Special scores over time.png")
         plt.close()
 
         # Plot a rolling average of these scores as they are discrete
-        plot_single_scores = self.score_tracker_singles.rolling(8).mean()
-        plot_single_scores.reset_index(inplace=True)
-        plot_single_scores.fillna(0, inplace=True)
-        plot_single_scores.plot(title="Single scores over time")
-        plt.savefig("Single scores over time.png")
-        plt.close()
+        self.score_tracker_singles.reset_index(inplace=True)  # Need to reset index as not concated properly
+        self.score_tracker_singles.fillna(0, inplace=True)
+        for col in self.score_tracker_singles:
+            plt.figure(figsize=(20, 20))
+            plt.plot(self.score_tracker_singles[col].reset_index())
+            rolling_df = pd.concat([self.score_tracker_singles.rolling(64).mean(),
+                                    self.score_tracker_singles.rolling(64).std()
+                                    ], axis=1)
+            plt.plot(rolling_df[0])  # Plot the rolling average
+            plt.plot(rolling_df[0] + rolling_df[1])  # Plot 1 std dev above
+            plt.plot(rolling_df[0] - rolling_df[1])  # Plot 1 std dev below
+            plt.savefig(f"{self.results_path}\\{col+1}'s over time.png")
+            plt.close()
 
 
 # For testing
