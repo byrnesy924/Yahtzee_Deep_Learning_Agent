@@ -37,14 +37,14 @@ if __name__ == '__main__':
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
     print(df.describe())
 
-    yahtzee_player = NNQPlayer()
+    yahtzee_player = NNQPlayer(show_figures=True)
     start = time.perf_counter()
 
     # Diagnose / profile code
-    profile = cProfile.Profile()
-    def wrapper():
-        yahtzee_player.run(4, 2)
-        return
+    # profile = cProfile.Profile()
+    # def wrapper():
+    #     yahtzee_player.run(4, 2)
+    #     return
     # profile.runcall(wrapper)
     # ps = pstats.Stats(profile)
     # ps.print_stats()
@@ -57,17 +57,12 @@ if __name__ == '__main__':
     # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
     # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
     # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
-    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
-    print(f"Took {(time.perf_counter() - start)/3600} hours to run {512*32} games")
+    yahtzee_player.run(32, 16, save_results=True, save_model=False, verbose=False)
+    # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
+    print(f"Took {(time.perf_counter() - start)/3600} hours to run {16*32} games")
 
     # yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
     # yahtzee_player.run(512, 32, save_results=True, save_model=False, verbose=False)
-
-    print("Weights of the model:\n")
-    print(yahtzee_player.dqn_model.get_weights())
-
-    yahtzee_player.plot_scores_over_time()
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
 

@@ -14,7 +14,7 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states):
+    def __init__(self, num_actions, num_samples, num_states):  # TODO Experiment with architecture as a hyper parameter
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
@@ -25,7 +25,8 @@ class QLearningModel(tf.keras.Model):
         self.dense1 = tf.keras.layers.Dense(32, activation='relu')
         self.dense2 = tf.keras.layers.Dense(32, activation='relu')
         self.dense3 = tf.keras.layers.Dense(32, activation='relu')  # TODO experiment with changed arhcitecture
-        self.output_layer = tf.keras.layers.Dense(num_actions)
+        self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
+        # Also need to change call method
 
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
@@ -152,6 +153,15 @@ class NNQPlayer(Yahtzee):
         self.memory_path = "Memory\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
         self.results_path = "Results\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
         self.show_figures = show_figures
+
+        if not os.path.isdir(self.memory_path):
+            os.makedirs(self.memory_path)
+        if not os.path.isdir(self.results_path):
+            os.makedirs(self.results_path)
+
+        # Overall score of the model - used for hyperparameter tuning
+        self.average_score = None  # update after running
+        self.average_loss = None  # update after running
 
         super().__init__()
 
@@ -471,19 +481,18 @@ class NNQPlayer(Yahtzee):
                 losses.append(loss)
                 if verbose:
                     print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
-            print(f"Epoch {epoch} finished")
 
             # Log variables
             if epoch % 16 == 2:  # updated to 16 to save disk space of memory
+                print(f"Epoch {epoch} finished")  # Convenient to check on training progress
                 if save_results:
                     # Form of logging - save to a csv
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
-                    if not os.path.isdir("Memory"):
-                        os.makedirs("Memory")
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(f"{self.memory_path}\\Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
-        # Save the TF model
+
+        # Save the TF model and its results
         if save_model:
             self.dqn_model.save_weights(
                 f"{self.results_path}\\\QNN_Yahtzee_weights.ckpt")
@@ -493,6 +502,8 @@ class NNQPlayer(Yahtzee):
             .transpose() \
             .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
 
+        self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
+        # self.average_loss = sum(losses) / len(losses)
         if save_results:
             scores.to_csv(f"{self.results_path}\\Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
@@ -549,25 +560,31 @@ class NNQPlayer(Yahtzee):
 
     def plot_scores_over_time(self):
         plot_special_scores = self.score_tracker_special.cumsum()
-        plot_special_scores.reset_index(inplace=True)
+        plot_special_scores.reset_index(inplace=True, drop=True)
         plot_special_scores.fillna(0, inplace=True)
         plot_special_scores.plot(title="Special scores over time")
         plt.savefig(f"{self.results_path}\\Special scores over time.png")
+        if self.show_figures:
+            plt.show()
         plt.close()
 
         # Plot a rolling average of these scores as they are discrete
-        self.score_tracker_singles.reset_index(inplace=True)  # Need to reset index as not concated properly
+        self.score_tracker_singles.reset_index(inplace=True, drop=True)  # Need to reset index as not concated properly
         self.score_tracker_singles.fillna(0, inplace=True)
         for col in self.score_tracker_singles:
             plt.figure(figsize=(20, 20))
-            plt.plot(self.score_tracker_singles[col].reset_index())
-            rolling_df = pd.concat([self.score_tracker_singles.rolling(64).mean(),
-                                    self.score_tracker_singles.rolling(64).std()
+            plt.plot(self.score_tracker_singles[col])  # Create a df with rolling avg and std dev
+            rolling_df = pd.concat([self.score_tracker_singles[col].rolling(2).mean(),
+                                    self.score_tracker_singles[col].rolling(2).std()
                                     ], axis=1)
-            plt.plot(rolling_df[0])  # Plot the rolling average
-            plt.plot(rolling_df[0] + rolling_df[1])  # Plot 1 std dev above
-            plt.plot(rolling_df[0] - rolling_df[1])  # Plot 1 std dev below
+
+            rolling_df.columns = ["Mean", "StdDev"]
+            plt.plot(rolling_df["Mean"])  # Plot the rolling average
+            plt.plot(rolling_df["Mean"] + rolling_df["StdDev"])  # Plot 1 std dev above
+            plt.plot(rolling_df["Mean"] - rolling_df["StdDev"])  # Plot 1 std dev below
             plt.savefig(f"{self.results_path}\\{col+1}'s over time.png")
+            if self.show_figures:
+                plt.show()
             plt.close()
 
 
