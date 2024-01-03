@@ -13,7 +13,7 @@ import cProfile
 import pstats
 
 from Yahtzee import Yahtzee
-from NNQmodel import NNQPlayer, QLearningModel
+from NNQmodel import NNQPlayer
 
 
 def random_player_game(random_player: Yahtzee):

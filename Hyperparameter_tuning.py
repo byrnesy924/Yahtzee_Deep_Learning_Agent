@@ -1,5 +1,7 @@
 import os
 import random
+import pandas as pd
+from time import perf_counter
 from multiprocessing import Pool
 from itertools import product  # Memory Error comes from wrapping in list()
 # from prodius import product  # Replace with open source solution if Memory Err
@@ -10,6 +12,7 @@ from NNQmodel import NNQPlayer
 """
 This is a rudimentary setup for using a random sampling approach to exploring the hyperparameter space
 """
+
 
 def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
                reward_factor_for_picking_choice_correctly, name):
@@ -24,7 +27,7 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
         reward_factor_for_picking_choice_correctly=reward_factor_for_picking_choice_correctly,
         name=name
     )
-    model.run(2, 2, save_results=False, save_model=False, verbose=False)  # Should take around 4 hours per item
+    model.run(512, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                reward_for_all_dice,
@@ -36,15 +39,11 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
     return results
 
 
-def randomly_sample_hyper_parameters(iterator_of_lists, no_samples):
-    """This function both randomly samples and creates a cartesian product of input lists
-    The reason it does both is because the Cartesian Product step on the full lists was causing Memopry Errors on my
-    machine
-    """
+def randomly_sample_hyper_parameters(iterator, no_samples):
+    """Randomly samples list"""
     # Reduces Memory use which was causing me memory issues
-    sampled_lists = [random.sample(item,no_samples*5) for item in iterator_of_lists]
-    cartesian_product = list(product(*sampled_lists))
-    return random.sample(cartesian_product, no_samples)
+    return list(random.sample(iterator, no_samples))
+
 
 if __name__ == '__main__':
     # TODO - try a manual method of bayesian optimisation instead
@@ -56,23 +55,40 @@ if __name__ == '__main__':
     reward_factor_for_initial_dice_picked = [0.01 * i for i in range(0, 101)]
     reward_factor_for_picking_choice_correctly = [0.5 * i for i in range(0, 21)]
 
-    lists_to_product = [learning_rate, gamma, reward_for_all_dice,
-                        reward_factor_for_initial_dice_picked, reward_factor_for_picking_choice_correctly]
+    # Sample once to reduce load when doing cartesian product
+    lists_to_product = [randomly_sample_hyper_parameters(learning_rate, 4),
+                        randomly_sample_hyper_parameters(gamma, 4),
+                        randomly_sample_hyper_parameters(reward_for_all_dice, 4),
+                        randomly_sample_hyper_parameters(reward_factor_for_initial_dice_picked, 4),
+                        randomly_sample_hyper_parameters(reward_factor_for_picking_choice_correctly, 4)]
+
     print("Doing Cartesian Product")
-    hyperparameter_space = product(*lists_to_product)  #Cartesian product of lists
+    hyperparameter_space = product(*lists_to_product)  # Cartesian product of lists
     print("Converting to list")
     hyperparameter_space = list(hyperparameter_space)  # split across two lines to reduce memory
+    print("Successful!")
 
-    no_processes = os.cpu_count() - 2
-    # hyperparameters_to_test = randomly_sample_hyper_parameters(list_of_values=hyperparameter_space,
-    #                                                            no_samples=no_processes)
-    # for hyperparameters in hyperparameters_to_test:
-    #     hyperparameters.append("HParameter_testing_" + str(hyperparameters)) # This takes a string literal of the
-    #     # hyperparameters
-    #     # And tacks it onto the list as a name to be passed to the Yahtzee Model
-    #     # It takes advantage of lists being mutable - careful with multiprocessing
-    #
-    # print(hyperparameters_to_test)
-    # with Pool(no_processes) as pool:
-    #     result = pool.starmap(test_model, hyperparameters_to_test)
-    # print(result)
+    no_processes = os.cpu_count() - 4
+
+    # Sample again to explore hyperparameter space
+    hyperparameters_pre_format = randomly_sample_hyper_parameters(
+        hyperparameter_space, no_processes
+        )
+
+    hyperparameters_to_test = []  # List comprehension would be gross
+    for hyperparameters in hyperparameters_pre_format:
+        set_of_parameters = list(hyperparameters)
+        set_of_parameters.append("HParameter_testing_" + str(hyperparameters))
+        hyperparameters_to_test.append(tuple(set_of_parameters))
+        # This takes a string literal of the hyperparameters
+        # And tacks it onto the tuple as a name to be passed to the Yahtzee Model
+
+    print(hyperparameters_to_test)
+    start = perf_counter()
+    with Pool(no_processes) as pool:
+        result = pool.starmap(test_model, hyperparameters_to_test)
+
+    results = pd.DataFrame(result, columns=["LR", "Gamma", "R1", "R2", "R3", "Name", "Avg_Score"])
+    results.to_csv(f"Results\\{datetime.today().strftime('%Y-%m-%d')}_HParameter_testing_results\\HParameter_testing_results.csv")
+    print(results.sort_values("Avg_Score", ascending=False))
+    print(f"Took {(perf_counter() - start)/60} mins to run {no_processes} tests through {512*64} games in 32 epochs")

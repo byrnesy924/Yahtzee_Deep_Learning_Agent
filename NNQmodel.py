@@ -163,7 +163,7 @@ class NNQPlayer(Yahtzee):
         self.average_score = None  # update after running
         self.average_loss = None  # update after running
 
-        super().__init__()
+        super().__init__()  # TODO this might be not necessary
 
     def game_state_to_nn_input(self) -> np.ndarray:
         """
@@ -574,8 +574,8 @@ class NNQPlayer(Yahtzee):
         for col in self.score_tracker_singles:
             plt.figure(figsize=(20, 20))
             plt.plot(self.score_tracker_singles[col])  # Create a df with rolling avg and std dev
-            rolling_df = pd.concat([self.score_tracker_singles[col].rolling(2).mean(),
-                                    self.score_tracker_singles[col].rolling(2).std()
+            rolling_df = pd.concat([self.score_tracker_singles[col].rolling(100).mean(),
+                                    self.score_tracker_singles[col].rolling(100).std()
                                     ], axis=1)
 
             rolling_df.columns = ["Mean", "StdDev"]
