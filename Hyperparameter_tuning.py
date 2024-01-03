@@ -1,8 +1,9 @@
 import os
 import random
 from multiprocessing import Pool
-# from itertools import product  # Causes a Memory erro in this caser
-from prodius import product  # Replace with open source solution https://github.com/sekgobela-kevin/prodius/
+from itertools import product  # Memory Error comes from wrapping in list()
+# from prodius import product  # Replace with open source solution if Memory Err
+# https://github.com/sekgobela-kevin/prodius/
 
 from NNQmodel import NNQPlayer
 
@@ -57,9 +58,10 @@ if __name__ == '__main__':
 
     lists_to_product = [learning_rate, gamma, reward_for_all_dice,
                         reward_factor_for_initial_dice_picked, reward_factor_for_picking_choice_correctly]
-
+    print("Doing Cartesian Product")
     hyperparameter_space = product(*lists_to_product)  #Cartesian product of lists
-    hyperparameter_space = list(hyperparameter_space) # split across two lines to reduce memory
+    print("Converting to list")
+    hyperparameter_space = list(hyperparameter_space)  # split across two lines to reduce memory
 
     no_processes = os.cpu_count() - 2
     # hyperparameters_to_test = randomly_sample_hyper_parameters(list_of_values=hyperparameter_space,
