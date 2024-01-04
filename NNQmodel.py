@@ -14,7 +14,7 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states):  # TODO Experiment with architecture as a hyper parameter
+    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32):  # TODO Experiment with architecture as a hyper parameter
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
@@ -22,9 +22,9 @@ class QLearningModel(tf.keras.Model):
         :param num_states: the number of inputs, i.e. the states of the game
         """
         super(QLearningModel, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(32, activation='relu')
-        self.dense2 = tf.keras.layers.Dense(32, activation='relu')
-        self.dense3 = tf.keras.layers.Dense(32, activation='relu')  # TODO experiment with changed arhcitecture
+        self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+        self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+        self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')  # TODO experiment with changed arhcitecture
         self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
         # Also need to change call method
 
@@ -104,6 +104,7 @@ class NNQPlayer(Yahtzee):
                  reward_factor_for_picking_choice_correctly=2,
                  length_of_memory=2000,
                  batch_size=64,
+                 buffer_size=32,
                  show_figures=False,
                  name="Basic"
                  ):
@@ -111,7 +112,7 @@ class NNQPlayer(Yahtzee):
         Inherits from Yahtzee, stores
         :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
         """
-        super(Yahtzee, self).__init__()
+        super(NNQPlayer, self).__init__()  # Originally passed Yahtzee to super - should be NNQPlayer
 
         # Hyper parameters
         self.learning_rate = learning_rate
@@ -125,9 +126,9 @@ class NNQPlayer(Yahtzee):
         if not large_nnq_output:
             self.action_size = 6
 
-        self.batch_size = batch_size  # For learning
+        self.batch_size = batch_size  # For learning - how many steps are sampled
         self.state_size = 25
-        self.buffer_size = 32
+        self.buffer_size = buffer_size  # Number of games between Target update and normal update
 
         # Hyperparameters of Reward Structure
         self.reward_for_all_dice = reward_for_all_dice  # the amount it gets for picking a dice
@@ -468,7 +469,7 @@ class NNQPlayer(Yahtzee):
                         score += reward
 
                 loss = None
-                if len(self.memory) > self.batch_size:
+                if len(self.memory) > self.batch_size:  # In the beginning cannot run update unl there are enough games
                     loss = self.update()
                     if game % self.buffer_size == 0:
                         # This buffer size is the distance between the target model and the actual model

@@ -2,6 +2,7 @@ import random
 
 import numpy as np
 
+
 class Yahtzee:
     """"
     Yahtzee Game Class. To use, call the class and pass in the type of player: choices are human, random or model
@@ -197,35 +198,49 @@ class Yahtzee:
         """
         wrapper for picking scores. Currently works on string input.
         """
+        # TODO use a switch statement here instead to reduce time
         if self.sub_turn != 3:
             raise Exception("Tried to pick a score but its not the third roll")
         if pick == "ones":
             self.ones = self.pick_ones()
+            return pick
         if pick == "twos":
             self.twos = self.pick_twos()
+            return pick
         if pick == "threes":
             self.threes = self.pick_threes()
+            return pick
         if pick == "fours":
             self.fours = self.pick_fours()
+            return pick
         if pick == "fives":
             self.fives = self.pick_fives()
+            return pick
         if pick == "sixes":
             self.sixes = self.pick_sixes()
+            return pick
         if pick == "three_of_a_kind":
             self.three_of_a_kind = self.pick_three_of_a_kind()
+            return pick
         if pick == "four_of_a_kind":
             self.four_of_a_kind = self.pick_four_of_a_kind()
+            return pick
         if pick == "full_house":
             self.full_house = self.pick_full_house()
+            return pick
         if pick == "small_straight":
             self.small_straight = self.pick_small_straight()
+            return pick
         if pick == "large_straight":
             self.large_straight = self.pick_large_straight()
+            return pick
         if pick == "chance":
             self.chance = self.pick_chance()
+            return pick
         if pick == "yahtzee":
             self.yahtzee = self.pick_yahtzee()
-        self.check_yahtzee_bonus()
+            self.check_yahtzee_bonus()
+            return pick
         return pick
 
     def turn(self, player_input=False, random_choice=False, choice_dice=None, choice_score=None, verbose: bool = False):
@@ -282,7 +297,6 @@ class Yahtzee:
                 random_choice = [random.random() for i in range(len(scores_to_choose))]
                 score_choice = scores_to_choose[np.argmax(random_choice)]
 
-
             self.pick_score(score_choice)
             self.turn_number += 1
             self.sub_turn = 1
@@ -315,9 +329,9 @@ class Yahtzee:
     def print_roll(self):
         print(self.first_roll, self.second_roll, self.third_roll)
 
-    def print_scores(self, verbose= True):
+    def print_scores(self, verbose=True):
         scorecard = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind",  # TODO Enum this
-         "four_of_a_kind", "full_house", "small_straight", "large_straight", "yahtzee", "chance"]
+                     "four_of_a_kind", "full_house", "small_straight", "large_straight", "yahtzee", "chance"]
         if not verbose:
             return (self.__getattribute__(item) for item in scorecard)
         print("Nice game! Your overall score was: ", self.calculate_score())

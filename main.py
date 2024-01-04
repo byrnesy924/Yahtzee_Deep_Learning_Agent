@@ -1,8 +1,26 @@
 """
 Inspiration for this project: https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
 Also: https://medium.com/p/b6bf911b6b2c <- great article on using a target model
-
+https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf <- Another Q learning approach.
+    ^ Where methods differ is in structure of game and heirarchy. Mine assumes reroll always,
+    which is more computationally expensive, but the agent does not need to learn to choose to reroll
+    so it is easier to impliment
 Plus playing Yahtzee with my Partner's family :)
+TODO change this DocString and put in ReadMe
+
+Also see https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
+^ This is a PHD student who did basically the same thing
+
+Also looks like James Glenn is the guy in this field - at Stanford or Yale or something
+
+Notes on approach:
+- Uses Double Deep Q Learning method
+- Also uses a Heirarchy approach (MaxQ Q-learning). The agent is rewarded for doing things like choosing scores and
+    choosing dice, but also rewarded for the score at the end of each turn and their overall score in the game
+    i.e. Q(s, a) = V(s, a) + C(s,a ) where V is a subtask (e.g. choosing dice) and C is a completion task
+    This reduces the sparcity of rewards, greatly improving performance and learning
+
+
 
 """
 # TODO set up a proper venv and requirements.txt and some acknowledgements
@@ -41,22 +59,18 @@ if __name__ == '__main__':
     start = time.perf_counter()
 
     # Diagnose / profile code
-    # profile = cProfile.Profile()
-    # def wrapper():
-    #     yahtzee_player.run(4, 2)
-    #     return
-    # profile.runcall(wrapper)
-    # ps = pstats.Stats(profile)
-    # ps.print_stats()
+    profile = cProfile.Profile()
+    do_profile = False  # Change in order to run the profiler
+
+    if do_profile:
+        def wrapper():
+            yahtzee_player.run(4, 2)
+            return
+        profile.runcall(wrapper)
+        ps = pstats.Stats(profile)
+        ps.print_stats()
 
 
-    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
-    # # Play games without updating:
-    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
-    # yahtzee_player.run(4, 16, save_results=True, save_model=False, verbose=False)
-    # yahtzee_player.run(16, 64, save_results=False, save_model=True, verbose=False)
     yahtzee_player.run(32, 16, save_results=True, save_model=False, verbose=False)
     # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {16*32} games")
@@ -67,7 +81,3 @@ if __name__ == '__main__':
     print(f"Took {(time.perf_counter() - start)/3600} hours to run")
 
     # TODO impliment hyper-paramter testing
-
-
-
-
