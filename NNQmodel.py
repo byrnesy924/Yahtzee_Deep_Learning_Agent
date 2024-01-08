@@ -477,7 +477,7 @@ class NNQPlayer(Yahtzee):
                         # Sequential experiences, in other words, improving stability
                         self.update_target()
                 final_scores.append(self.calculate_score())
-                scorecards.append(self.print_scores(verbose=False))
+                scorecards.append(self.print_scores(verbose=False))  # TODO check this verbose flag is passed correctly
                 self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
                 losses.append(loss)
                 if verbose:
@@ -485,7 +485,7 @@ class NNQPlayer(Yahtzee):
 
             # Log variables
             if epoch % 16 == 2:  # updated to 16 to save disk space of memory
-                print(f"Epoch {epoch} finished")  # Convenient to check on training progress
+                # print(f"Epoch {epoch} finished")  # Convenient to check on training progress
                 if save_results:
                     # Form of logging - save to a csv
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls

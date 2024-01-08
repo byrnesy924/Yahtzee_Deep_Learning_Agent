@@ -1,6 +1,5 @@
 import os
 import random
-import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -8,20 +7,32 @@ from datetime import datetime
 from time import perf_counter
 from multiprocessing import Pool
 from itertools import product  # Memory Error comes from wrapping in list()
-# from prodius import product  # Replace with open source solution if Memory Err
+# from prodius import product  # Replace with open source solution if Memory Err - slower solution
 # https://github.com/sekgobela-kevin/prodius/
 
 from NNQmodel import NNQPlayer
 
 """
 This is a rudimentary setup for using a random sampling approach to exploring and optimising hyperparameters
+
+Initial findings: unsurprisingly, a higher learning rate generated a higher average score in the limited testing range
+    This was expected, as because of computational restraints the models weren't trained for very long
+    Reward 3 (the reward for correctly picking a choice) was slightly negatively correlated with score
+    gamma had a slight posotive correlation with average score
+    R1 had very little correlation
+    R2 had a slight negative correlation
+
+    Rather than treating these hyperparameters as directly correlated, it was assumed that the linear relationship may be more complex
+    Therefore, a Bayesian approach was also explored
 """
 # TODO impliemnt a bayesian approach instead
 
 
 def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
-               reward_factor_for_picking_choice_correctly, name):
-    """"""
+               reward_factor_for_picking_choice_correctly, batch_size, memory, buffer_size,
+               name="HP_testing", random_results=False):
+    """ this is a black box wrapper function that trains the Q-Learning Network
+    """
     # TODO add in architecture
     model = NNQPlayer(
         show_figures=False,
@@ -30,19 +41,31 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
         reward_for_all_dice=reward_for_all_dice,
         reward_factor_for_initial_dice_picked=reward_factor_for_initial_dice_picked,
         reward_factor_for_picking_choice_correctly=reward_factor_for_picking_choice_correctly,
+        batch_size=int(batch_size),  # Note these need to be integers - coerce them to integers here for Bayesian Opt
+        length_of_memory=int(memory),
+        buffer_size=int(buffer_size),
         name=name
     )
 
-    model.run(512, 64, save_results=False, save_model=False, verbose=False)
+    model.run(128, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                reward_for_all_dice,
                reward_factor_for_initial_dice_picked,
                reward_factor_for_picking_choice_correctly,
+               batch_size,
+               memory,
+               buffer_size,
                model.average_score,
-               # model.average_loss
+               model.average_loss
                ]
-    return results
+
+    # return results
+    # In this random script, we return a list of results for formatting into a DataFrame
+    # But in the Bayesian approach, we can only return a target variable, not a list
+    if random_results:
+        return results
+    return model.average_score
 
 
 def randomly_sample_hyper_parameters(iterator, no_samples):
@@ -62,18 +85,18 @@ def plot_hyperparameter_space(results: pd.DataFrame):
 
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Hyperparameter testing results.png")  # TODO put this somewhere rather in .\
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.png")  # TODO put this somewhere rather in .\
     plt.close()
     return
 
 
 def plot_correlation_heatmap(results):
-    heatmap = sns.heatmap(results.corr()["Avg_Score"], annot=True)
-    heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
+    heatmap = sns.heatmap(results.corr(), annot=True)
+    # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Hyperparameter heatmap.png")  # TODO put this somewhere rather in .\
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_heatmap.png")  # TODO put this somewhere rather in .\
     plt.close()
-    return
+    return heatmap
 
 
 def test_hyperparameters(list_of_hyperparameters, no_processes):
@@ -103,7 +126,7 @@ if __name__ == '__main__':
     # TODO - try a manual method of bayesian optimisation instead
 
     # Define hyperparamters as discrete ranges
-    learning_rate = [0.000_000_1 * i for i in range(1, 101)]
+    learning_rate = [0.000_000_1 * i for i in range(1, 101)]  # TODO use np for these lines rather than list comp
     gamma = [0.95 + i * 0.0005 for i in range(1, 101)]
     reward_for_all_dice = [0.5 * i for i in range(0, 21)]
     reward_factor_for_initial_dice_picked = [0.01 * i for i in range(0, 101)]
@@ -125,7 +148,11 @@ if __name__ == '__main__':
     no_runs_of_testing = 10
 
     start = perf_counter()
-    list_of_results = [test_hyperparameters(hyperparameter_space, no_processes) for i in range(no_runs_of_testing)]
+    list_of_results = []
+    for i in range(no_runs_of_testing):
+        # Originally used list comprehension but ran into memory error
+        results = test_hyperparameters(hyperparameter_space, no_processes)
+        list_of_results.append(results)
     results = pd.concat(list_of_results)
 
     if not os.path.isdir(f"Results\\{datetime.today().strftime('%Y-%m-%d')}_HParameter_testing_results"):
