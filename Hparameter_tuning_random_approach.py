@@ -85,16 +85,16 @@ def plot_hyperparameter_space(results: pd.DataFrame):
 
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.png")  # TODO put this somewhere rather in .\
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.png") 
     plt.close()
     return
 
 
-def plot_correlation_heatmap(results):
+def plot_correlation_heatmap(results: pd.DataFrame()):
     heatmap = sns.heatmap(results.corr(), annot=True)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_heatmap.png")  # TODO put this somewhere rather in .\
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_heatmap.png")
     plt.close()
     return heatmap
 
