@@ -60,13 +60,13 @@ def run_BO(BO_HParameters, number_epochs, load_results=False):
         print("Loaded previous points:\n")
         print("Space: \n", optimizer.space, '\nres: \n', optimizer.res, '\nmax:\n', optimizer.max)
 
-    logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
-    optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    # logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
+    # optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
-    optimizer.maximize(
-        init_points=1,
-        n_iter=10
-    )
+    # optimizer.maximize(
+    #     init_points=1,
+    #     n_iter=10
+    # )
 
     print(optimizer.max)
     results = pd.json_normalize(optimizer.res)
@@ -130,7 +130,7 @@ def run_GPyOPT(GPy_HParameters):
 
 
 # Plotting and visualisation functions defined below 
-def identify_top_correlates(resluts: pd.DataFrame):
+def identify_top_correlates(results: pd.DataFrame):
     """Returns the most important, second most important, third most important set of 3 parameters. 
     REturns a list of pd.index"""
     correlates_with_target = results.corr()["target"]
@@ -140,20 +140,24 @@ def identify_top_correlates(resluts: pd.DataFrame):
 
 
 def three_d_map_of_specified_parameters(results: pd.DataFrame(), top_parameters: pd.Index, no_epochs: int):
+    """plots a surface with the target variable on the z axis and the params to plot on x/y"""    
     x = results[top_parameters[0]].to_numpy()
     y = results[top_parameters[1]].to_numpy()
 
     Z = results["target"].to_numpy()
 
-    X, Y = np.meshgrid(x, y)
-
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    # X, Y = np.meshgrid(x, y)
 
     # Plot the surface.
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    surf = ax.plot_trisurf(x, y, Z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+
+    # Label axis
+    plt.xlabel(top_parameters[0])
+    plt.ylabel(top_parameters[1])
 
     # Customize the z axis.
-    ax.set_zlim(-1.01, 1.01)
+    ax.set_zlim(0, 40)
     ax.zaxis.set_major_locator(LinearLocator(10))
     # A StrMethodFormatter is used automatically
     ax.zaxis.set_major_formatter('{x:.02f}')
@@ -170,6 +174,9 @@ def three_d_map_of_specified_parameters(results: pd.DataFrame(), top_parameters:
 
 
 def plot_correlation_heatmap(results: pd.DataFrame(), no_epochs: int):
+    """Plot a heatmap of correlations between the parameter variables, including with the target variable
+    essentially just a wrapper around sns.heatmap to save the png
+    """
     heatmap = sns.heatmap(results.corr(), annot=True)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()
