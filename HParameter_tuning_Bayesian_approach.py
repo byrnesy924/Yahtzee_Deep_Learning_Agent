@@ -24,7 +24,7 @@ from NNQmodel import NNQPlayer
 
 # Define paremter space
 pspace_BO = {
-    "learning_rate": (0.000_000_1, 0.000_01),
+    "learning_rate": (0.000_008, 0.000_01),
     "gamma": (0.90, 0.99),
     "reward_for_all_dice": (0, 10),
     "reward_factor_for_initial_dice_picked": (0, 1),
@@ -56,17 +56,17 @@ def run_BO(BO_HParameters, number_epochs, load_results=False):
 
         load_logs(optimizer, logs=[f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs_backup.log.json"])
         # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs 
-        # in a list!
-        print("Loaded previous points:\n")
-        print("Space: \n", optimizer.space, '\nres: \n', optimizer.res, '\nmax:\n', optimizer.max)
+        # in a list! this implimentation works fine but creating a new log each time may have been smarter
+        print("Loaded previous points:")
+        print('\nmax:\n', optimizer.max)
 
-    # logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
-    # optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
+    optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
-    # optimizer.maximize(
-    #     init_points=1,
-    #     n_iter=10
-    # )
+    optimizer.maximize(
+        init_points=5,
+        n_iter=35
+    )
 
     print(optimizer.max)
     results = pd.json_normalize(optimizer.res)
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     BO_time = perf_counter()
 
     # TODO - check if I can use the knwoledge from the ranomd tests as a starting pad
-    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method 10 times")
+    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method 41 times")
 
     # run_GPyOPT(GPy_HParameters=pspace_GPy)  # Took ~ 60% longer and 3.11 + multiprocessing failed
     # print(f"GPy took {round((perf_counter() - BO_time)/60, 2)} mins to do method 5 times")
