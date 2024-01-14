@@ -8,6 +8,7 @@ from time import perf_counter
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator
+from scipy.interpolate import LinearNDInterpolator
 
 # Bayesian Packages to use - HyperOpt, GPyOpt, PyMC, BayesianOptimization, Ax (Facebook's tool)
 from GPyOpt.methods import BayesianOptimization  # Had Installation issues - built from setup.py + upgrade cython
@@ -24,8 +25,8 @@ from NNQmodel import NNQPlayer
 
 # Define paremter space
 pspace_BO = {
-    "learning_rate": (0.000_008, 0.000_01),
-    "gamma": (0.90, 0.99),
+    "learning_rate": (0.000_008, 0.000_1),
+    "gamma": (0.88, 0.99),
     "reward_for_all_dice": (0, 10),
     "reward_factor_for_initial_dice_picked": (0, 1),
     "reward_factor_for_picking_choice_correctly": (0, 10),
@@ -50,22 +51,22 @@ def run_BO(BO_HParameters, number_epochs, load_results=False):
         # initialised below
         with open(f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs_backup.log.json", 'a') as backup:
             with open(f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log.json", 'r') as original:
-                print(original.__dict__)
-                print(original.readlines)
                 backup.writelines(original.readlines())
+                print("Transferred last run's results to backup")
 
         load_logs(optimizer, logs=[f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs_backup.log.json"])
         # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs 
         # in a list! this implimentation works fine but creating a new log each time may have been smarter
         print("Loaded previous points:")
-        print('\nmax:\n', optimizer.max)
+        print('\n is max:\n', optimizer.max)
 
     logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
     optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
+    print("optimising!")
     optimizer.maximize(
-        init_points=5,
-        n_iter=35
+        init_points=15,
+        n_iter=50
     )
 
     print(optimizer.max)
@@ -139,7 +140,7 @@ def identify_top_correlates(results: pd.DataFrame):
     return [correlates_with_target.index[0:2], correlates_with_target.index[1:3],  correlates_with_target.index[2:4]]
 
 
-def three_d_map_of_specified_parameters(results: pd.DataFrame(), top_parameters: pd.Index, no_epochs: int):
+def three_d_map_of_specified_parameters(results: pd.DataFrame, top_parameters: pd.Index, no_epochs: int):
     """plots a surface with the target variable on the z axis and the params to plot on x/y"""    
     x = results[top_parameters[0]].to_numpy()
     y = results[top_parameters[1]].to_numpy()
@@ -171,6 +172,24 @@ def three_d_map_of_specified_parameters(results: pd.DataFrame(), top_parameters:
     plt.close()
 
     return 
+
+
+def interpolateand_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.Index, no_epochs: int):
+    """plots a surface with the target variable on the z axis and the params to plot on x/y"""    
+    x = results[top_parameters[0]].to_numpy()
+    y = results[top_parameters[1]].to_numpy()
+
+    z = results["target"].to_numpy()
+
+    X, Y, Z = np.meshgrid(x, y, z)
+    points = np.column_stack((X.flatten(), Y.flatten(), Z.flatten()))
+    values_flat = points.flatten()
+    interfunc = LinearNDInterpolator(points, values_flat)
+    interpolated_values = interfunc(np.column_stack((X.flatten(), Y.flatten(), Z.flatten())))
+    interpolated_values = interpolated_values.reshape(X.shape)
+    # TODO - work out how to do this
+
+    return
 
 
 def plot_correlation_heatmap(results: pd.DataFrame(), no_epochs: int):
