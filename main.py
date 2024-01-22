@@ -46,6 +46,21 @@ def random_player_game(random_player: Yahtzee):
     return score
 
 
+def profile_code(model):
+    # Diagnose / profile code
+    profile = cProfile.Profile()
+    do_profile = False  # Change in order to run the profiler
+
+    if do_profile:
+        def wrapper():
+            model.run(8, 4)
+            return
+        profile.runcall(wrapper)
+        ps = pstats.Stats(profile)
+        ps.print_stats()
+    return ps
+
+
 if __name__ == '__main__':
     start = time.perf_counter()
     random_player = Yahtzee(player_type="random")
@@ -55,23 +70,24 @@ if __name__ == '__main__':
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
     print(df.describe())
 
-    yahtzee_player = NNQPlayer(show_figures=True)
+    # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
+    model_hyperparameters = {
+        "learning_rate": 0.000_05,
+        "gamma": 0.9,
+        "reward_for_all_dice": 2,
+        "reward_factor_for_initial_dice_picked": 0.85,
+        "reward_factor_for_picking_choice_correctly": 6.5,
+        "batch_size": 75,
+        "buffer_size": 100,
+        "length_of_memory": 3600,
+        "name": "Inital_HP_tuning"
+    }
+
+    yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
     start = time.perf_counter()
 
-    # Diagnose / profile code
-    profile = cProfile.Profile()
-    do_profile = False  # Change in order to run the profiler
-
-    if do_profile:
-        def wrapper():
-            yahtzee_player.run(4, 2)
-            return
-        profile.runcall(wrapper)
-        ps = pstats.Stats(profile)
-        ps.print_stats()
-
-
-    yahtzee_player.run(32, 16, save_results=True, save_model=False, verbose=False)
+    # Train Model
+    yahtzee_player.run(32, 16, save_results=False, save_model=False, verbose=False)
     # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {16*32} games")
 

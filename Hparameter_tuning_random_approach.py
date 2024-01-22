@@ -47,7 +47,7 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
         name=name
     )
 
-    model.run(128, 64, save_results=False, save_model=False, verbose=False)
+    model.run(512, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                reward_for_all_dice,
@@ -85,7 +85,7 @@ def plot_hyperparameter_space(results: pd.DataFrame):
 
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.png") 
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.jpeg") 
     plt.close()
     return
 
@@ -94,7 +94,7 @@ def plot_correlation_heatmap(results: pd.DataFrame()):
     heatmap = sns.heatmap(results.corr(), annot=True)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_heatmap.png")
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_heatmap.jpeg")
     plt.close()
     return heatmap
 

@@ -492,7 +492,6 @@ class NNQPlayer(Yahtzee):
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(f"{self.memory_path}\\Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
-
         # Save the TF model and its results
         if save_model:
             self.dqn_model.save_weights(
@@ -527,6 +526,7 @@ class NNQPlayer(Yahtzee):
         plt.plot(scores["Rolling average"])
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
+        plt.title("Yahtzee Score over time")
         plt.savefig(f"{self.results_path}\\Final score.png")
         if self.show_figures:
             plt.show()
@@ -534,6 +534,7 @@ class NNQPlayer(Yahtzee):
 
         plt.figure(figsize=(20, 20))
         plt.plot(losses)
+        plt.title("Losses over time")
         plt.savefig(f"{self.results_path}\\Loss.png")
         if self.show_figures:
             plt.show()
@@ -583,6 +584,7 @@ class NNQPlayer(Yahtzee):
             plt.plot(rolling_df["Mean"])  # Plot the rolling average
             plt.plot(rolling_df["Mean"] + rolling_df["StdDev"])  # Plot 1 std dev above
             plt.plot(rolling_df["Mean"] - rolling_df["StdDev"])  # Plot 1 std dev below
+            plt.title(f"{col}'s over time")
             plt.savefig(f"{self.results_path}\\{col+1}'s over time.png")
             if self.show_figures:
                 plt.show()
