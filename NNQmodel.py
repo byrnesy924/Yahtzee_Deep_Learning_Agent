@@ -506,8 +506,8 @@ class NNQPlayer(Yahtzee):
         # self.average_loss = sum(losses) / len(losses)
         if save_results:
             scores.to_csv(f"{self.results_path}\\Final scores.csv")
-        scores["Rolling average"] = scores.iloc[:, 0].rolling(100).mean()
-        scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(100).std()
+        scores["Rolling average"] = scores.iloc[:, 0].rolling(512).mean()
+        scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(512).std()
 
         self.plot_games_over_time(scores=scores, losses=losses)  # Coupled with code above
         self.plot_scores_over_time()
@@ -576,8 +576,8 @@ class NNQPlayer(Yahtzee):
         for col in self.score_tracker_singles:
             plt.figure(figsize=(20, 20))
             plt.plot(self.score_tracker_singles[col])  # Create a df with rolling avg and std dev
-            rolling_df = pd.concat([self.score_tracker_singles[col].rolling(100).mean(),
-                                    self.score_tracker_singles[col].rolling(100).std()
+            rolling_df = pd.concat([self.score_tracker_singles[col].rolling(512).mean(),
+                                    self.score_tracker_singles[col].rolling(512).std()
                                     ], axis=1)
 
             rolling_df.columns = ["Mean", "StdDev"]
