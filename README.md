@@ -22,4 +22,3 @@ Bits to talk about:
     - Initial random approach
     - Bayesian Approach - noisey black box function
     - preliminary findings
--
