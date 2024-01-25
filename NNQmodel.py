@@ -5,6 +5,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import time
+import sys
 
 from datetime import datetime
 from collections import deque
@@ -102,6 +103,7 @@ class NNQPlayer(Yahtzee):
                  punish_for_not_picking_dice=False,
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
+                 reward_factor_total_score=0.1,
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
@@ -135,6 +137,7 @@ class NNQPlayer(Yahtzee):
         self.punish_for_not_picking_dice = punish_for_not_picking_dice  # If it doesnt pick dice punish it
         self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked  # reward for each inital dice chosen (not at end of round)
         self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly  # Reward it for actually choosing something
+        self.reward_factor_total_score = reward_factor_total_score  # Reward multiplier for its current score
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
         self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
@@ -145,9 +148,9 @@ class NNQPlayer(Yahtzee):
 
         # Added these dataframes to track scores and plot them over time
         self.score_tracker_special = pd.DataFrame(
-            columns=["3OAK", "4OAK", "LSTR", "HSTR", "FH", "YTZ"])
+            columns=["3OAK", "4OAK", "LSTR", "HSTR", "FH", "YTZ"], dtype=np.int8)
         self.score_tracker_singles = pd.DataFrame(
-            columns=range(1, 7)
+            columns=range(1, 7), dtype=np.int8
         )
 
         # Locations to save memory and results
@@ -191,7 +194,6 @@ class NNQPlayer(Yahtzee):
         # Turn state array
         game_state_array = np.array([self.turn_number, self.sub_turn] + current_dice_saved)
 
-        # TODO experiment with setting these to negative numbers to show it has been chosen
         # get the state of the players choices
         scores = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind", "four_of_a_kind",
                   "full_house", "small_straight", "large_straight", "yahtzee", "chance"]
@@ -389,11 +391,12 @@ class NNQPlayer(Yahtzee):
         current_score = self.calculate_score()
         self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
 
-        reward = self.calculate_score() - current_score  # TODO experiment with gained vs total score
+        reward = self.calculate_score() - current_score
+        reward += self.reward_factor_total_score*self.calculate_score  # this multiplyer is a hyper parameter
 
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
-        # TODO experiment with negative reward - findings, did not perform as well
+        # Experimented with negative reward - findings, did not perform as well
         # if action_picked < 0:
         #     reward -= 1
         # Current implementation - if it picks a score on the third try, reward it slightly
@@ -433,10 +436,25 @@ class NNQPlayer(Yahtzee):
         """
         # Define epochs
         losses = []
-        final_scores = []
+        final_scores = []  # TODO Think about using built-in array module to reduce memory usage
         scorecards = []
 
         for epoch in range(number_of_epochs):
+            # TODO remove this this is for some bug fixing
+            if epoch % 16 == 0:
+                print(f"\nEpoch: {epoch}\n")
+                print("NNQ Objects:\n")
+                for key in self.__dict__:
+                    if sys.getsizeof(self.__getattribute__(key)) > 0.001:
+                        print(key, " size in MB: ", sys.getsizeof(self.__getattribute__(key))/1_000_000)
+
+                print("\nOther Variables: \n")
+                print("Final scores: ", sys.getsizeof(final_scores)/1_000_000, 
+                      "\nlosses: ", sys.getsizeof(losses)/1_000_000,
+                      "\nScorecards: ", sys.getsizeof(scorecards)/1_000_000,
+                      "\n Model total: ", sys.getsizeof(self)/1_000_000
+                      )
+
             for game in range(games_per_epoch):
                 epsilon = 1 / (games_per_epoch * 0.1 + 1)
                 self.reset_game()
@@ -477,7 +495,7 @@ class NNQPlayer(Yahtzee):
                         # Sequential experiences, in other words, improving stability
                         self.update_target()
                 final_scores.append(self.calculate_score())
-                scorecards.append(self.print_scores(verbose=False))  # TODO check this verbose flag is passed correctly
+                scorecards.append(self.print_scores(verbose=False))
                 self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
                 losses.append(loss)
                 if verbose:
@@ -548,17 +566,20 @@ class NNQPlayer(Yahtzee):
                            "yahtzee"]
         special_scores = [1 if self.__getattribute__(item) > 0 else 0 for item in list_of_special]
 
-        df_special_score = pd.DataFrame(special_scores).transpose()
+        df_special_score = pd.DataFrame(special_scores, dtype=np.int8).transpose()
         df_special_score.columns = self.score_tracker_special.columns
+        # del special_scores
 
         single_scores_names = ["ones", "twos", "threes", "fours", "fives", "sixes"]
         single_scores = [self.__getattribute__(score) for score in single_scores_names]
-        df_single_scores = pd.DataFrame(single_scores).transpose()
+        df_single_scores = pd.DataFrame(single_scores, dtype=np.int8).transpose()
         df_single_scores.columns = self.score_tracker_singles.columns
+        # del single_scores
 
         self.score_tracker_special = pd.concat(
-            [self.score_tracker_special, df_special_score])  # unsure why pycharm cant see
-        self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores])  # these are DataFrames
+            [self.score_tracker_special, df_special_score], copy=False)  # unsure why pycharm cant see
+        self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores], copy=False)
+        return
 
     def plot_scores_over_time(self):
         plot_special_scores = self.score_tracker_special.cumsum()

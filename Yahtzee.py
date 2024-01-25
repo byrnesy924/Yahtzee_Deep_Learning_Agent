@@ -198,49 +198,50 @@ class Yahtzee:
         """
         wrapper for picking scores. Currently works on string input.
         """
-        # TODO use a switch statement here instead to reduce time
         if self.sub_turn != 3:
             raise Exception("Tried to pick a score but its not the third roll")
-        if pick == "ones":
-            self.ones = self.pick_ones()
-            return pick
-        if pick == "twos":
-            self.twos = self.pick_twos()
-            return pick
-        if pick == "threes":
-            self.threes = self.pick_threes()
-            return pick
-        if pick == "fours":
-            self.fours = self.pick_fours()
-            return pick
-        if pick == "fives":
-            self.fives = self.pick_fives()
-            return pick
-        if pick == "sixes":
-            self.sixes = self.pick_sixes()
-            return pick
-        if pick == "three_of_a_kind":
-            self.three_of_a_kind = self.pick_three_of_a_kind()
-            return pick
-        if pick == "four_of_a_kind":
-            self.four_of_a_kind = self.pick_four_of_a_kind()
-            return pick
-        if pick == "full_house":
-            self.full_house = self.pick_full_house()
-            return pick
-        if pick == "small_straight":
-            self.small_straight = self.pick_small_straight()
-            return pick
-        if pick == "large_straight":
-            self.large_straight = self.pick_large_straight()
-            return pick
-        if pick == "chance":
-            self.chance = self.pick_chance()
-            return pick
-        if pick == "yahtzee":
-            self.yahtzee = self.pick_yahtzee()
-            self.check_yahtzee_bonus()
-            return pick
+        # Python 3.10 - use switch statement
+        match pick:
+            case "ones":
+                self.ones = self.pick_ones()
+                return pick
+            case "twos":
+                self.twos = self.pick_twos()
+                return pick
+            case "threes":
+                self.threes = self.pick_threes()
+                return pick
+            case "fours":
+                self.fours = self.pick_fours()
+                return pick
+            case "fives":
+                self.fives = self.pick_fives()
+                return pick
+            case "sixes":
+                self.sixes = self.pick_sixes()
+                return pick
+            case "three_of_a_kind":
+                self.three_of_a_kind = self.pick_three_of_a_kind()
+                return pick
+            case "four_of_a_kind":
+                self.four_of_a_kind = self.pick_four_of_a_kind()
+                return pick
+            case "full_house":
+                self.full_house = self.pick_full_house()
+                return pick
+            case "small_straight":
+                self.small_straight = self.pick_small_straight()
+                return pick
+            case "large_straight":
+                self.large_straight = self.pick_large_straight()
+                return pick
+            case "chance":
+                self.chance = self.pick_chance()
+                return pick
+            case "yahtzee":
+                self.yahtzee = self.pick_yahtzee()
+                self.check_yahtzee_bonus()
+                return pick
         return pick
 
     def turn(self, player_input=False, random_choice=False, choice_dice=None, choice_score=None, verbose: bool = False):
@@ -250,7 +251,7 @@ class Yahtzee:
             self.dice_saved = []
             self.roll_dice()
         if player_input:
-            print("\nThis is the current dice roll. 0's mean they cannot be selected") # TODO make sure it cant do that
+            print("\nThis is the current dice roll. 0's mean they cannot be selected")
             print("Dice roll: \n")
             self.print_roll()
             print("\n")
@@ -318,8 +319,6 @@ class Yahtzee:
         jokers_sum = sum([self.__getattribute__(joker) for joker in jokers])
         if singles_sum >= 63 and not self.get_bonus:
             self.get_bonus = True
-
-        if self.get_bonus:
             self.total_score = singles_sum + jokers_sum + 63
         else:
             self.total_score = singles_sum + jokers_sum

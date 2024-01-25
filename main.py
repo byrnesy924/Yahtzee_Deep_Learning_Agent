@@ -89,10 +89,6 @@ if __name__ == '__main__':
     # Train Model
     epochs = 256
     games_per_eopch = 64
-    yahtzee_player.run(epochs, games_per_eopch, save_results=False, save_model=False, verbose=False)
+    yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=True, verbose=False)
     # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_eopch} games in {epochs} epochs")
-
-    print(f"Took {(time.perf_counter() - start)/3600} hours to run")
-
-    # TODO impliment hyper-paramter testing
