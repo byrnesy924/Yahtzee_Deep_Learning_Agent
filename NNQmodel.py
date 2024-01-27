@@ -103,7 +103,8 @@ class NNQPlayer(Yahtzee):
                  punish_for_not_picking_dice=False,
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
-                 reward_factor_total_score=0.1,
+                 reward_factor_total_score=0.4,
+                 reward_factor_chosen_score=1,
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
@@ -138,6 +139,7 @@ class NNQPlayer(Yahtzee):
         self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked  # reward for each inital dice chosen (not at end of round)
         self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly  # Reward it for actually choosing something
         self.reward_factor_total_score = reward_factor_total_score  # Reward multiplier for its current score
+        self.reward_factor_chosen_score = reward_factor_chosen_score
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
         self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
@@ -391,8 +393,8 @@ class NNQPlayer(Yahtzee):
         current_score = self.calculate_score()
         self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
 
-        reward = self.calculate_score() - current_score
-        reward += self.reward_factor_total_score*self.calculate_score  # this multiplyer is a hyper parameter
+        reward = self.reward_factor_chosen_score*(self.calculate_score() - current_score)
+        reward += self.reward_factor_total_score*self.calculate_score()  # this multiplyer is a hyper parameter
 
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
@@ -436,25 +438,10 @@ class NNQPlayer(Yahtzee):
         """
         # Define epochs
         losses = []
-        final_scores = []  # TODO Think about using built-in array module to reduce memory usage
+        final_scores = []
         scorecards = []
 
         for epoch in range(number_of_epochs):
-            # TODO remove this this is for some bug fixing
-            if epoch % 16 == 0:
-                print(f"\nEpoch: {epoch}\n")
-                print("NNQ Objects:\n")
-                for key in self.__dict__:
-                    if sys.getsizeof(self.__getattribute__(key)) > 0.001:
-                        print(key, " size in MB: ", sys.getsizeof(self.__getattribute__(key))/1_000_000)
-
-                print("\nOther Variables: \n")
-                print("Final scores: ", sys.getsizeof(final_scores)/1_000_000, 
-                      "\nlosses: ", sys.getsizeof(losses)/1_000_000,
-                      "\nScorecards: ", sys.getsizeof(scorecards)/1_000_000,
-                      "\n Model total: ", sys.getsizeof(self)/1_000_000
-                      )
-
             for game in range(games_per_epoch):
                 epsilon = 1 / (games_per_epoch * 0.1 + 1)
                 self.reset_game()
