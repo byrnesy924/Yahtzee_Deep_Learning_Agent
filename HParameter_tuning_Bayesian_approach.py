@@ -31,6 +31,7 @@ pspace_BO = {
     "reward_factor_for_initial_dice_picked": (0, 1),
     "reward_factor_for_picking_choice_correctly": (0, 10),
     "reward_factor_total_score": (0, 1),
+    "reward_factor_chosen_score": (0, 1),
     "batch_size": (32, 128),
     "buffer_size": (32, 128),
     "memory": (2_000, 10_000),

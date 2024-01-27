@@ -6,7 +6,7 @@ https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf <- Another Q
     which is more computationally expensive, but the agent does not need to learn to choose to reroll
     so it is easier to impliment
 Plus playing Yahtzee with my Partner's family :)
-TODO change this DocString and put in ReadMe
+TODO change this DocString and put in ReadMe and put acknowledgments
 
 Also see https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
 ^ This is a PHD student who did basically the same thing
@@ -23,8 +23,6 @@ Notes on approach:
 
 
 """
-# TODO set up a proper venv and requirements.txt and some acknowledgements
-
 import time
 import pandas as pd
 import cProfile
@@ -80,14 +78,14 @@ if __name__ == '__main__':
         "batch_size": 75,
         "buffer_size": 100,
         "length_of_memory": 3600,
-        "name": "Inital_HP_tuning"
+        "name": "Inital_HP_tuned"
     }
 
     yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
     start = time.perf_counter()
 
     # Train Model
-    epochs = 256
+    epochs = 2048
     games_per_eopch = 64
     yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=True, verbose=False)
     # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
