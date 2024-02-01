@@ -69,8 +69,8 @@ def run_BO(BO_HParameters, number_epochs, load_results=False):
 
     print("\nOptimising!\n")
     optimizer.maximize(
-        init_points=2,
-        n_iter=6
+        init_points=1,
+        n_iter=1
     )
 
     print(optimizer.max)

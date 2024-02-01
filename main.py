@@ -75,17 +75,19 @@ if __name__ == '__main__':
         "reward_for_all_dice": 2,
         "reward_factor_for_initial_dice_picked": 0.85,
         "reward_factor_for_picking_choice_correctly": 6.5,
+        "reward_factor_total_score": 1,
+        "reward_factor_chosen_score": 0.5,
         "batch_size": 75,
         "buffer_size": 100,
-        "length_of_memory": 3600,
-        "name": "Inital_HP_tuned"
+        "length_of_memory": 4800,
+        "name": "Inital_HP_tuned_8192"
     }
 
     yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
     start = time.perf_counter()
 
     # Train Model
-    epochs = 2048
+    epochs = 8192
     games_per_eopch = 64
     yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=True, verbose=False)
     # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
