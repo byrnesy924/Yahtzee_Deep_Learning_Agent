@@ -3,7 +3,10 @@ import random
 import numpy as np
 import pandas as pd
 import seaborn as sns
-# from time import perf_counter
+
+from time import perf_counter
+from pathlib import Path
+from multiprocessing import pool
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -38,7 +41,7 @@ pspace_BO = {
 }
 
 
-def run_BO(BO_HParameters, number_epochs, load_results=False):
+def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=False):
     optimizer = BO(  # TODO test the bounds minimiser object!
         f=test_model,
         pbounds=BO_HParameters,
@@ -47,35 +50,28 @@ def run_BO(BO_HParameters, number_epochs, load_results=False):
         allow_duplicate_points=True  # Just easier to mark thi true as I'm piece-meal mapping the space
     )
 
-    if load_results and os.path.isfile(f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log.json"):
-        # Create a backup with the appended file so as to not lose points when resetting
-        # This is necessary because the JSONlogger object only logs seen points and will overwrite the object when 
-        # initialised below
-        with open(f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs_backup.log.json", 'a') as backup:
-            with open(f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log.json", 'r') as original:
-                backup.writelines(original.readlines())
-                print("Transferred last run's results to backup")
+    logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
+    logs_path = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs.log.json")
 
     if load_results:
         # Case where logs is not present but load is - then load the backup
-        load_logs(optimizer, logs=[f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs_backup.log.json"])
+        load_logs(optimizer, logs=[logs_backup])
         # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs 
         # in a list! this implimentation works fine but creating a new log each time may have been smarter
         print("Loaded previous points:")
         print('\n is max:\n', optimizer.max)
 
-    logger = JSONLogger(path=f"Results\\Hyperparameter_testing\\{number_epochs}_epochs\\BO_logs.log")
+    logger = JSONLogger(path=str(logs_path))
     optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
     print("\nOptimising!\n")
     optimizer.maximize(
-        init_points=1,
-        n_iter=1
+        init_points=init_runs,
+        n_iter=total_runs
     )
 
     print(optimizer.max)
     results = pd.json_normalize(optimizer.res)
-    print(results.columns)
     results.columns = results.columns.str.lstrip("params.")
     return results
 
@@ -173,10 +169,11 @@ def three_d_map_of_specified_parameters(results: pd.DataFrame, top_parameters: p
 
     plt.show()
     name = top_parameters[0] + "_and_" + top_parameters[1] + "_plotted_against_target"
-    plt.savefig(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\{name}.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{name}.jpeg")
+    plt.savefig(fig_path)
     plt.close()
 
-    return 
+    return
 
 
 def interpolate_and_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.Index, no_epochs: int):
@@ -203,7 +200,8 @@ def interpolate_and_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.I
     plt.colorbar()
     plt.autoscale()
     plt.show()
-    plt.savefig(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\2D_Interpolated_{name}.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/2D_Interpolated_{name}.jpeg")
+    plt.savefig(fig_path)
     plt.close()
 
     # Plot 3D
@@ -226,7 +224,9 @@ def interpolate_and_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.I
 
     plt.show()
     name = top_parameters[0] + "_and_" + top_parameters[1] + "_plotted_against_target"
-    plt.savefig(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\Interpolated_{name}.jpeg")
+    fig_path_1d = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Interpolated_{name}.jpeg")
+
+    plt.savefig(fig_path_1d)
     plt.close()
 
     return
@@ -240,7 +240,8 @@ def plot_correlation_heatmap(results: pd.DataFrame(), no_epochs: int):
     heatmap = sns.heatmap(results.corr(), annot=True, ax=ax)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\Hyperparameter_heatmap.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_heatmap.jpeg")
+    plt.savefig(fig_path)
     plt.close()
     return heatmap
 
@@ -257,7 +258,8 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
 
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\Hyperparameter_testing_pairplot_results.jpeg") 
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_testing_pairplot_results.jpeg")
+    plt.savefig(fig_path)
     plt.close()
     return
 
@@ -265,45 +267,63 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
 if __name__ == "__main__":
     # Set # epochs from run function - this is only used for naming convention
     # no_epochs = 512
-    no_epochs = 128
+    no_epochs = 8
+    hparameter_testing = Path("Results/Hyperparameter_testing")
+    epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
+    results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
 
-    # if not os.path.isdir("Results\\Hyperparameter_testing"):
-    #     os.makedirs("Results\\Hyperparameter_testing")
-    # if not os.path.isdir(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs"):
-    #     os.makedirs(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs")
+    load_results = True
+    if not os.path.isdir(hparameter_testing):
+        os.makedirs(hparameter_testing)
+    if not os.path.isdir(epochs_path):
+        os.makedirs(epochs_path)
+        load_results = False
 
-    # start = perf_counter()
-    # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)  # Make sure to change load
-    # # Do multiple because was running out of memory when maximimise more times
+    logs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/BO_logs.log.json")
+    logs_backup = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/BO_logs_backup.log.json")
 
-    # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)
-    # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)
-    # # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)
-    # # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)
-    # # run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)
-    # results = run_BO(BO_HParameters=pspace_BO, number_epochs=no_epochs, load_results=True)  # Make sure to change load
+    if load_results and os.path.isfile(logs_path):
+        # Create a backup with the appended files so as to not lose points when resetting
+        # This is necessary because the JSONlogger object only logs seen points and will overwrite the object when
+        # initialised below
+        with open(logs_backup, 'a') as backup:
+            with open(logs_path, 'r') as original:
+                backup.writelines(original.readlines())
+                print("Transferred last run's results to backup")
 
-    # # Do twice because was running out of memory
-    # results.to_csv(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\Bayesian_results.csv", index=False)
-    # BO_time = perf_counter()
+    start = perf_counter()
 
-    # Plot results
-    df_final = pd.read_csv(f"Results\\Hyperparameter_testing\\{no_epochs}_epochs\\Bayesian_results.csv")
+    no_processes = os.cpu_count() - 2
+    args = [(pspace_BO, no_epochs, 2, 5, load_results) for i in range(no_processes)]
+    # Single version:
+    # results = run_BO(BO_HParameters=pspace_BO,
+    #                  number_epochs=no_epochs,
+    #                  init_runs=2,
+    #                  total_runs=5,
+    #                  load_results=load_results)
+
+    # Multithreaded
+    with pool.Pool(no_processes) as pool:
+        results_list = [res for res in pool.starmap(run_BO, args)]
+
+    results = pd.concat(results_list)
+    results.to_csv(results_path, index=False)
+    BO_time = perf_counter()
 
     # TODO - check if I can use the knwoledge from the ranomd tests as a starting pad
-    # print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {7*13} times")
+    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*2*5} times")
 
     # run_GPyOPT(GPy_HParameters=pspace_GPy)  # Took ~ 60% longer and 3.11 + multiprocessing failed
     # print(f"GPy took {round((perf_counter() - BO_time)/60, 2)} mins to do method 5 times")
 
     # Plotting
-    top_correlates = identify_top_correlates(df_final)
+    top_correlates = identify_top_correlates(results)
     for correlates in top_correlates:
-        three_d_map_of_specified_parameters(results=df_final, top_parameters=correlates, no_epochs=no_epochs)
+        three_d_map_of_specified_parameters(results=results, top_parameters=correlates, no_epochs=no_epochs)
 
-        interpolate_and_plot_three_d_map(results=df_final, top_parameters=correlates, no_epochs=no_epochs)
+        interpolate_and_plot_three_d_map(results=results, top_parameters=correlates, no_epochs=no_epochs)
 
-    plot_correlation_heatmap(results=df_final, no_epochs=no_epochs)
-    plot_hyperparameter_space(results=df_final, no_epochs=no_epochs)
+    plot_correlation_heatmap(results=results, no_epochs=no_epochs)
+    plot_hyperparameter_space(results=results, no_epochs=no_epochs)
 
-    print(df_final.sort_values("target", ascending=False).head(20))
+    print(results.sort_values("target", ascending=False).head(20))
