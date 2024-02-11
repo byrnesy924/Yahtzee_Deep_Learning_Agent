@@ -15,8 +15,12 @@ from scipy.interpolate import LinearNDInterpolator
 
 # Bayesian Packages to use - HyperOpt, GPyOpt, PyMC, BayesianOptimization, Ax (Facebook's tool)
 from GPyOpt.methods import BayesianOptimization  # Had Installation issues - built from setup.py + upgrade cython
-# from hyperopt import hp, fmin, tpe, space_eval  # HyperOpt does not use gaussian process, but Tree of Parzen Estimators (TPE method)
+
+# HyperOpt does not use gaussian process, but Tree of Parzen Estimators (TPE method)
+# from hyperopt import hp, fmin, tpe, space_eval
+
 from bayes_opt import BayesianOptimization as BO  # Import as to clear namespace - tested both packages
+from bayes_opt import SequentialDomainReductionTransformer
 from bayes_opt.logger import JSONLogger
 from bayes_opt.event import Events
 from bayes_opt.util import load_logs
@@ -28,35 +32,46 @@ from NNQmodel import NNQPlayer
 
 # Define paremter space
 pspace_BO = {
-    "learning_rate": (0.000_01, 0.000_1),
+    "batch_size": (32, 128),
+    "buffer_size": (32, 128),
     "gamma": (0.88, 0.99),
+    "learning_rate": (0.000_01, 0.001),
+    "memory": (2_000, 10_000),
+    "punish_amount_for_incorrect_score_choice": (-5, 0),
+    "punish_for_not_picking_dice": (-1, 0),
     "reward_for_all_dice": (0, 10),
     "reward_factor_for_initial_dice_picked": (0, 1),
     "reward_factor_for_picking_choice_correctly": (0, 10),
-    "reward_factor_total_score": (0, 1),
-    "reward_factor_chosen_score": (0, 1),
-    "batch_size": (32, 128),
-    "buffer_size": (32, 128),
-    "memory": (2_000, 10_000),
+    "reward_factor_total_score": (0, 5),
+    "reward_factor_chosen_score": (0, 5)
 }
 
 
 def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=False):
-    optimizer = BO(  # TODO test the bounds minimiser object!
+
+    # Included bounds transformer to dynamically change the bounds as the Bayesin agents search
+    bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[1, 1, 0.01, 0.00001, 100, 0.1, 0.1, 0.1,
+                                                                              0.1, 0.1, 0.1, 0.1])
+
+    optimizer = BO(
         f=test_model,
         pbounds=BO_HParameters,
         verbose=1,
-        random_state=random.randint(0, 20),
-        allow_duplicate_points=True  # Just easier to mark thi true as I'm piece-meal mapping the space
+        random_state=random.randint(0, 100),
+        allow_duplicate_points=True,  # Just easier to mark this true as I'm piece-meal mapping the space
+        bounds_transformer=bounds_transformer
     )
 
     logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
     logs_path = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs.log.json")
 
-    if load_results:
+    print(str(logs_backup))
+
+    if load_results and os.path.isfile(logs_backup):
         # Case where logs is not present but load is - then load the backup
-        load_logs(optimizer, logs=[logs_backup])
-        # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs 
+        print(str(logs_backup))
+        load_logs(optimizer, logs=[str(logs_backup)])
+        # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs
         # in a list! this implimentation works fine but creating a new log each time may have been smarter
         print("Loaded previous points:")
         print('\n is max:\n', optimizer.max)
@@ -131,9 +146,9 @@ def run_GPyOPT(GPy_HParameters):
     myBopt.plot_acquisition()
 
 
-# Plotting and visualisation functions defined below 
+# Plotting and visualisation functions defined below
 def identify_top_correlates(results: pd.DataFrame):
-    """Returns the most important, second most important, third most important set of 3 parameters. 
+    """Returns the most important, second most important, third most important set of 3 parameters.
     REturns a list of pd.index"""
     correlates_with_target = results.corr()["target"]
     correlates_with_target.drop(index="target", inplace=True)
@@ -142,7 +157,7 @@ def identify_top_correlates(results: pd.DataFrame):
 
 
 def three_d_map_of_specified_parameters(results: pd.DataFrame, top_parameters: pd.Index, no_epochs: int):
-    """plots a surface with the target variable on the z axis and the params to plot on x/y"""    
+    """plots a surface with the target variable on the z axis and the params to plot on x/y"""
     x = results[top_parameters[0]].to_numpy()
     y = results[top_parameters[1]].to_numpy()
 
@@ -167,10 +182,10 @@ def three_d_map_of_specified_parameters(results: pd.DataFrame, top_parameters: p
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
 
-    plt.show()
     name = top_parameters[0] + "_and_" + top_parameters[1] + "_plotted_against_target"
-    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{name}.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{name}.png")
     plt.savefig(fig_path)
+    plt.show()
     plt.close()
 
     return
@@ -199,9 +214,9 @@ def interpolate_and_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.I
     plt.legend()
     plt.colorbar()
     plt.autoscale()
-    plt.show()
-    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/2D_Interpolated_{name}.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/2D_Interpolated_{name}.png")
     plt.savefig(fig_path)
+    plt.show()
     plt.close()
 
     # Plot 3D
@@ -222,26 +237,26 @@ def interpolate_and_plot_three_d_map(results: pd.DataFrame, top_parameters: pd.I
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
 
-    plt.show()
     name = top_parameters[0] + "_and_" + top_parameters[1] + "_plotted_against_target"
-    fig_path_1d = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Interpolated_{name}.jpeg")
+    fig_path_1d = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Interpolated_{name}.png")
 
     plt.savefig(fig_path_1d)
+    plt.show()
     plt.close()
 
     return
 
 
-def plot_correlation_heatmap(results: pd.DataFrame(), no_epochs: int):
+def plot_correlation_heatmap(results: pd.DataFrame, no_epochs: int):
     """Plot a heatmap of correlations between the parameter variables, including with the target variable
     essentially just a wrapper around sns.heatmap to save the png
     """
     fig, ax = plt.subplots(figsize=(20, 20))
     heatmap = sns.heatmap(results.corr(), annot=True, ax=ax)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
-    plt.show()
-    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_heatmap.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_heatmap.png")
     plt.savefig(fig_path)
+    plt.show()
     plt.close()
     return heatmap
 
@@ -256,18 +271,46 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
 
     pair_plot = sns.pairplot(results, vars=vars, hue="target")
 
+    # TODO look into this deprecation
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
-    plt.show()
-    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_testing_pairplot_results.jpeg")
+    fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_testing_pairplot_results.png")
     plt.savefig(fig_path)
+    plt.show()
     plt.close()
     return
+
+
+def plot_each_variable_against_target(results: pd.DataFrame, no_epochs: int):
+    vars_to_plot = results.drop(columns="target").columns.to_numpy()
+
+    for var in vars_to_plot:
+        sub_df = results[["target", var]].copy().sort_values(var)
+        sns.lmplot(data=sub_df, x=var, y="target", order=20)
+
+        fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{var}_against_results.png")
+        plt.savefig(fig_path)
+
+        plt.show()
+        plt.close()
+    return
+
+
+def transfer_rows_to_backup(file_path: Path, backup_file_path: Path):
+    lines_seen = set()  # holds lines already seen
+
+    with open(file_path, "r") as file:
+        with open(backup_file_path, "a") as backup:
+            for line in file:
+                if line not in lines_seen:
+                    lines_seen.add(line)
+                    backup.write(line)
+    print("Transferred last run's results to backup")
 
 
 if __name__ == "__main__":
     # Set # epochs from run function - this is only used for naming convention
     # no_epochs = 512
-    no_epochs = 8
+    no_epochs = 16
     hparameter_testing = Path("Results/Hyperparameter_testing")
     epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
     results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
@@ -285,38 +328,38 @@ if __name__ == "__main__":
     if load_results and os.path.isfile(logs_path):
         # Create a backup with the appended files so as to not lose points when resetting
         # This is necessary because the JSONlogger object only logs seen points and will overwrite the object when
-        # initialised below
-        with open(logs_backup, 'a') as backup:
-            with open(logs_path, 'r') as original:
-                backup.writelines(original.readlines())
-                print("Transferred last run's results to backup")
+        transfer_rows_to_backup(logs_path, logs_backup)
 
     start = perf_counter()
 
-    no_processes = os.cpu_count() - 2
-    args = [(pspace_BO, no_epochs, 2, 5, load_results) for i in range(no_processes)]
+    no_processes = os.cpu_count() - 10
+    args = [(pspace_BO, no_epochs, 8, 40, load_results) for i in range(no_processes)]
     # Single version:
     # results = run_BO(BO_HParameters=pspace_BO,
     #                  number_epochs=no_epochs,
-    #                  init_runs=2,
-    #                  total_runs=5,
+    #                  init_runs=1,
+    #                  total_runs=0,
     #                  load_results=load_results)
 
     # Multithreaded
     with pool.Pool(no_processes) as pool:
         results_list = [res for res in pool.starmap(run_BO, args)]
+    results = pd.concat(results_list).drop_duplicates()
 
-    results = pd.concat(results_list)
     results.to_csv(results_path, index=False)
     BO_time = perf_counter()
 
-    # TODO - check if I can use the knwoledge from the ranomd tests as a starting pad
-    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*2*5} times")
+    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*4*20} times")
 
     # run_GPyOPT(GPy_HParameters=pspace_GPy)  # Took ~ 60% longer and 3.11 + multiprocessing failed
     # print(f"GPy took {round((perf_counter() - BO_time)/60, 2)} mins to do method 5 times")
 
+    results = pd.read_csv(results_path)
+    print(len(results))
+
     # Plotting
+    plot_each_variable_against_target(results=results, no_epochs=no_epochs)
+
     top_correlates = identify_top_correlates(results)
     for correlates in top_correlates:
         three_d_map_of_specified_parameters(results=results, top_parameters=correlates, no_epochs=no_epochs)
