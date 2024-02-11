@@ -5,9 +5,10 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import time
-import sys
+# import sys
 
 from datetime import datetime
+from pathlib import Path
 from collections import deque
 
 from Yahtzee import Yahtzee
@@ -100,11 +101,12 @@ class NNQPlayer(Yahtzee):
                  learning_rate=0.000001,
                  gamma=0.99,
                  reward_for_all_dice=5,
-                 punish_for_not_picking_dice=False,
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
                  reward_factor_total_score=0.4,
                  reward_factor_chosen_score=1,
+                 punish_factor_not_picking_dice=0,
+                 punish_amount_for_incorrect_score_choice=-2,
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
@@ -135,11 +137,24 @@ class NNQPlayer(Yahtzee):
 
         # Hyperparameters of Reward Structure
         self.reward_for_all_dice = reward_for_all_dice  # the amount it gets for picking a dice
-        self.punish_for_not_picking_dice = punish_for_not_picking_dice  # If it doesnt pick dice punish it
+        self.punish_for_not_picking_dice = punish_factor_not_picking_dice  # If it doesnt pick dice punish it
         self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked  # reward for each inital dice chosen (not at end of round)
         self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly  # Reward it for actually choosing something
         self.reward_factor_total_score = reward_factor_total_score  # Reward multiplier for its current score
         self.reward_factor_chosen_score = reward_factor_chosen_score
+        self.punish_amount_for_incorrect_score_choice = punish_amount_for_incorrect_score_choice
+
+        # Record the rewards gained to get a better insight into how it is optimising the reward space
+        # Each time a reward is received it is appended onto here
+        self.recorded_rewards = {
+            "reward_for_all_dice": [],
+            "punish_for_not_picking_dice": [],
+            "punish_amount_for_incorrect_score_choice": [],
+            "reward_factor_for_initial_dice_picked": [],
+            "reward_factor_for_picking_choice_correctly": [],
+            "reward_factor_total_score": [],
+            "reward_factor_chosen_score": [],
+        }
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
         self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
@@ -156,8 +171,8 @@ class NNQPlayer(Yahtzee):
         )
 
         # Locations to save memory and results
-        self.memory_path = "Memory\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
-        self.results_path = "Results\\" + datetime.today().strftime('%Y-%m-%d') + "_" + name
+        self.memory_path = Path("Memory/" + datetime.today().strftime('%Y-%m-%d') + "_" + name)
+        self.results_path = Path("Results/" + datetime.today().strftime('%Y-%m-%d') + "_" + name)
         self.show_figures = show_figures
 
         if not os.path.isdir(self.memory_path):
@@ -391,28 +406,73 @@ class NNQPlayer(Yahtzee):
         """
         current_number_dice_saved = len(self.dice_saved)
         current_score = self.calculate_score()
-        self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
+        score = self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
 
-        reward = self.reward_factor_chosen_score*(self.calculate_score() - current_score)
-        reward += self.reward_factor_total_score*self.calculate_score()  # this multiplyer is a hyper parameter
+        updated_score = self.calculate_score()
 
+        # TODO investigate negative score here and remove if bugs fixed
+        if updated_score < current_score or self.reward_factor_chosen_score*(updated_score - current_score) < 0:
+            print("Somehow score is negative??")
+            print("Updated score: ", updated_score, " Original score:", current_score)
+            print("Turn numbers: ", self.turn_number, self.sub_turn)
+
+            print("Choices")
+            print(score_move, dice_move)
+            print("New scorecard:")
+            # print(self.__dict__)
+            self.print_scores()
+            raise Exception("Found a negative number - investigate!")
+
+        # Factor in the case that the
+        if self.turn_number == 1 and self.sub_turn == 1:
+            reward = self.reward_factor_chosen_score*updated_score
+        else:
+            reward = self.reward_factor_chosen_score*(updated_score - current_score)
+        self.recorded_rewards["reward_factor_chosen_score"].append(reward)
+
+        # Score is returned by the Yahtzee Game, if it is None then the score was picked that was previously picked in the game
+        if score is None:
+            reward -= self.punish_amount_for_incorrect_score_choice
+            self.recorded_rewards["punish_amount_for_incorrect_score_choice"].append(
+                -1*self.punish_amount_for_incorrect_score_choice)
+        else:
+            self.recorded_rewards["punish_amount_for_incorrect_score_choice"].append(0)
+
+        reward += self.reward_factor_total_score*updated_score  # this multiplyer is a hyper parameter
+        self.recorded_rewards["reward_factor_total_score"].append(self.reward_factor_total_score*updated_score)
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
         # Experimented with negative reward - findings, did not perform as well
         # if action_picked < 0:
         #     reward -= 1
         # Current implementation - if it picks a score on the third try, reward it slightly
+
+        # 8 Feb 2024 learning - The reward factor for picking correctly is by far the largest reward
+        # After ~1M games the reward can blow up into the hundreds
+        # Two approaches: make it += a certain amount of reward
+        # Or, make it a multiplier of only the chosen score rather than the total score CURRENT IMPLIMENTATION
+
+        reward_for_all_dice, punish_for_incorrect_choice, reward_for_initial_dice = 0, 0, 0  # Record 0 if no reward
         if self.sub_turn == 1:
             # Note that sub turn is INCREMENTED after self.turn which is above, therefore check if sub turn is 1
             # If the network picked an action at the end, reward it
+
             if 0 < action_picked < 14:
-                reward *= self.reward_factor_for_picking_choice_correctly  # Double the reward for successfully choosing a score
+                # Double the reward for successfully choosing a score
+                self.recorded_rewards["reward_factor_for_picking_choice_correctly"].append(
+                    self.reward_factor_for_picking_choice_correctly  # *(updated_score - current_score)
+                )
+                reward += self.reward_factor_for_picking_choice_correctly  # *(updated_score - current_score)
+            else:
+                self.recorded_rewards["reward_factor_for_picking_choice_correctly"].append(0)  # Record 0 if no reward
 
             # Current Implementation - If it picked all its dice, reward it more. If it didn't, punish it
             if self.sub_turn == 1 and len(self.dice_saved) == 5:
-                reward += 3  # self.reward_for_all_dice
-            elif self.punish_for_not_picking_dice and current_number_dice_saved > 0:
-                reward -= 1
+                reward_for_all_dice = self.reward_for_all_dice
+                reward += reward_for_all_dice
+            elif self.punish_for_not_picking_dice > 0 and current_number_dice_saved > 0:
+                punish_for_incorrect_choice = self.punish_for_not_picking_dice
+                reward -= punish_for_incorrect_choice
         else:
             # If it is not the last sub turn, reward it very slightly for picking its dice
             # Map this to: 1 dice = 0.1, 2 dice = 0.2, 3 dice = 0.3, 4 dice = 0.2, 5 dice = 0.1
@@ -421,7 +481,17 @@ class NNQPlayer(Yahtzee):
             # reward += number_dice_picked_reward
 
             # New implimentation - just reward it for picking dice
-            reward += self.reward_factor_for_initial_dice_picked * (len(self.dice_saved) - current_number_dice_saved)
+            reward_for_initial_dice = self.reward_factor_for_initial_dice_picked * (len(self.dice_saved) -
+                                                                                    current_number_dice_saved)
+            reward += reward_for_initial_dice
+
+            # Note need to record 0 here in this branch
+            self.recorded_rewards["reward_factor_for_picking_choice_correctly"].append(0)  # Record 0 if no reward
+
+        # Record these reward factors
+        self.recorded_rewards["reward_factor_for_initial_dice_picked"].append(reward_for_initial_dice)
+        self.recorded_rewards["reward_for_all_dice"].append(reward_for_all_dice)
+        self.recorded_rewards["punish_for_not_picking_dice"].append(punish_for_incorrect_choice)
 
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
@@ -494,13 +564,13 @@ class NNQPlayer(Yahtzee):
                 if save_results:
                     # Form of logging - save to a csv
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
-                    pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(f"{self.memory_path}\\Epoch {epoch} memory.csv")
+                    pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
         # Save the TF model and its results
         if save_model:
             self.dqn_model.save_weights(
-                f"{self.results_path}\\\QNN_Yahtzee_weights.ckpt")
+                self.results_path / "QNN_Yahtzee_weights.ckpt")
 
         # Plot (and save) the results of training
         scores = pd.DataFrame([final_scores, scorecards, losses]) \
@@ -510,12 +580,14 @@ class NNQPlayer(Yahtzee):
         self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
         # self.average_loss = sum(losses) / len(losses)
         if save_results:
-            scores.to_csv(f"{self.results_path}\\Final scores.csv")
+            scores.to_csv(self.results_path / "Final scores.csv")
         scores["Rolling average"] = scores.iloc[:, 0].rolling(512).mean()
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(512).std()
 
+        # More plotting functions for analysis
         self.plot_games_over_time(scores=scores, losses=losses)  # Coupled with code above
         self.plot_scores_over_time()
+        self.plot_reward_gain_over_time()
 
         return
 
@@ -532,7 +604,7 @@ class NNQPlayer(Yahtzee):
         plt.plot(scores["Rolling average"] - scores["Rolling standard deviation"])
         plt.plot(scores["Rolling average"] + scores["Rolling standard deviation"])
         plt.title("Yahtzee Score over time")
-        plt.savefig(f"{self.results_path}\\Final score.png")
+        plt.savefig(self.results_path / "Final score.png")
         if self.show_figures:
             plt.show()
         plt.close()
@@ -540,7 +612,7 @@ class NNQPlayer(Yahtzee):
         plt.figure(figsize=(20, 20))
         plt.plot(losses)
         plt.title("Losses over time")
-        plt.savefig(f"{self.results_path}\\Loss.png")
+        plt.savefig(self.results_path / "Loss.png")
         if self.show_figures:
             plt.show()
         plt.close()
@@ -573,7 +645,7 @@ class NNQPlayer(Yahtzee):
         plot_special_scores.reset_index(inplace=True, drop=True)
         plot_special_scores.fillna(0, inplace=True)
         plot_special_scores.plot(title="Special scores over time")
-        plt.savefig(f"{self.results_path}\\Special scores over time.png")
+        plt.savefig(self.results_path / "Special scores over time.png")
         if self.show_figures:
             plt.show()
         plt.close()
@@ -593,7 +665,41 @@ class NNQPlayer(Yahtzee):
             plt.plot(rolling_df["Mean"] + rolling_df["StdDev"])  # Plot 1 std dev above
             plt.plot(rolling_df["Mean"] - rolling_df["StdDev"])  # Plot 1 std dev below
             plt.title(f"{col}'s over time")
-            plt.savefig(f"{self.results_path}\\{col+1}'s over time.png")
+            plt.savefig(self.results_path / f"{col+1}'s over time.png")
+            if self.show_figures:
+                plt.show()
+            plt.close()
+
+    def plot_reward_gain_over_time(self) -> None:
+        df_rewards = pd.DataFrame.from_dict(self.recorded_rewards)
+        # plt.figure(figsize=(20, 100))
+        df_rewards.plot(subplots=True, figsize=(20, 100))
+        plt.title("Individual rewards over time")
+        plt.savefig(self.results_path / "Raw_rewards_over_time.png")
+        if self.show_figures:
+            plt.show()
+        plt.close()
+
+        # plt.figure()
+        df_rewards.plot(figsize=(60, 40))
+        plt.title("All rewards stacked over time")
+        plt.savefig(self.results_path / "Stacked_rewards_over_time.png")
+        if self.show_figures:
+            plt.show()
+        plt.close()
+
+        for col in df_rewards:
+            plt.figure(figsize=(40, 20))
+            rolling_df = pd.concat([df_rewards[col].rolling(512).mean(),
+                                    df_rewards[col].rolling(512).std()
+                                    ], axis=1)
+
+            rolling_df.columns = ["Mean", "StdDev"]
+            plt.plot(rolling_df["Mean"])  # Plot the rolling average
+            plt.plot(rolling_df["Mean"] + rolling_df["StdDev"])  # Plot 1 std dev above
+            plt.plot(rolling_df["Mean"] - rolling_df["StdDev"])  # Plot 1 std dev below
+            plt.title(f"Average reward {col} over time")
+            plt.savefig(self.results_path / f"Average reward {col} over time.png")
             if self.show_figures:
                 plt.show()
             plt.close()

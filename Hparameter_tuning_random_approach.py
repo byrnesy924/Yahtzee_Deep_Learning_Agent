@@ -30,7 +30,9 @@ Initial findings: unsurprisingly, a higher learning rate generated a higher aver
 
 def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
                reward_factor_total_score, reward_factor_chosen_score,
-               reward_factor_for_picking_choice_correctly, batch_size, memory, buffer_size,
+               reward_factor_for_picking_choice_correctly, punish_amount_for_incorrect_score_choice,
+               punish_for_not_picking_dice,
+               batch_size, memory, buffer_size,
                name="HP_testing", random_results=False):
     """ this is a black box wrapper function that trains the Q-Learning Network
     """
@@ -44,6 +46,8 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
         reward_factor_chosen_score=reward_factor_chosen_score,
         reward_factor_for_initial_dice_picked=reward_factor_for_initial_dice_picked,
         reward_factor_for_picking_choice_correctly=reward_factor_for_picking_choice_correctly,
+        punish_amount_for_incorrect_score_choice=punish_amount_for_incorrect_score_choice,
+        punish_factor_not_picking_dice=punish_for_not_picking_dice,
         batch_size=int(batch_size),  # Note these need to be integers - coerce them to integers here for Bayesian Opt
         length_of_memory=int(memory),
         buffer_size=int(buffer_size),
