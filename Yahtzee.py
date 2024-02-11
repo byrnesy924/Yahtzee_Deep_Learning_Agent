@@ -38,6 +38,7 @@ class Yahtzee:
     second_roll: dict = {"one": 0, "two": 0, "three": 0, "four": 0, "five": 0}
     third_roll: dict = {"one": 0, "two": 0, "three": 0, "four": 0, "five": 0}
     dice_saved: list = []
+    chosen_scores = []
 
     def __init__(self, player_type: str = random):
         self.player_type: str = player_type  # Semantically encodes whether the player is a human, random or model
@@ -203,44 +204,85 @@ class Yahtzee:
         # Python 3.10 - use switch statement
         match pick:
             case "ones":
+                if "ones" in self.chosen_scores:
+                    return None
                 self.ones = self.pick_ones()
+                self.chosen_scores.append("ones")
                 return pick
             case "twos":
+                if "twos" in self.chosen_scores:
+                    return None
                 self.twos = self.pick_twos()
+                self.chosen_scores.append("twos")
                 return pick
             case "threes":
+                if "threes" in self.chosen_scores:
+                    return None
                 self.threes = self.pick_threes()
+                self.chosen_scores.append("threes")
                 return pick
             case "fours":
+                if "fours" in self.chosen_scores:
+                    return None
                 self.fours = self.pick_fours()
+                self.chosen_scores.append("fours")
                 return pick
             case "fives":
+                if "fives" in self.chosen_scores:
+                    return None
                 self.fives = self.pick_fives()
+                self.chosen_scores.append("fives")
                 return pick
             case "sixes":
+                if "sixes" in self.chosen_scores:
+                    return None
                 self.sixes = self.pick_sixes()
+                self.chosen_scores.append("sixes")
                 return pick
             case "three_of_a_kind":
+                if "three_of_a_kind" in self.chosen_scores:
+                    return None
                 self.three_of_a_kind = self.pick_three_of_a_kind()
+                self.chosen_scores.append("three_of_a_kind")
                 return pick
             case "four_of_a_kind":
+                if "four_of_a_kind" in self.chosen_scores:
+                    return None
                 self.four_of_a_kind = self.pick_four_of_a_kind()
+                self.chosen_scores.append("four_of_a_kind")
                 return pick
             case "full_house":
+                if "full_house" in self.chosen_scores:
+                    return None
                 self.full_house = self.pick_full_house()
+                self.chosen_scores.append("full_house")
                 return pick
             case "small_straight":
+                if "small_straight" in self.chosen_scores:
+                    return None
                 self.small_straight = self.pick_small_straight()
+                self.chosen_scores.append("small_straight")
                 return pick
             case "large_straight":
+                if "large_straight" in self.chosen_scores:
+                    return None
                 self.large_straight = self.pick_large_straight()
+                self.chosen_scores.append("large_straight")
                 return pick
             case "chance":
+                if "chance" in self.chosen_scores:
+                    return None
                 self.chance = self.pick_chance()
+                self.chosen_scores.append("chance")
                 return pick
             case "yahtzee":
-                self.yahtzee = self.pick_yahtzee()
-                self.check_yahtzee_bonus()
+                if self.chosen_scores.count("yahtzee") > 1:  # Yahztee and bonus has already bene filled - move one
+                    return None
+                if "yahtzee" in self.chosen_scores:  # If yahtzee has been tried once add yahtzee bonus if it applies
+                    self.check_yahtzee_bonus()
+                else:  # Third case, no yahtzee has been tried, then case is like normal
+                    self.chosen_scores.append("yahtzee")
+                    self.yahtzee = self.pick_yahtzee()
                 return pick
         return pick
 
@@ -250,6 +292,8 @@ class Yahtzee:
             # Remove the first roll of the dice, do that when resetting the game
             self.dice_saved = []
             self.roll_dice()
+        
+        # When a player is choosing the move
         if player_input:
             print("\nThis is the current dice roll. 0's mean they cannot be selected")
             print("Dice roll: \n")
@@ -298,7 +342,7 @@ class Yahtzee:
                 random_choice = [random.random() for i in range(len(scores_to_choose))]
                 score_choice = scores_to_choose[np.argmax(random_choice)]
 
-            self.pick_score(score_choice)
+            score = self.pick_score(score_choice)
             self.turn_number += 1
             self.sub_turn = 1
             self.dice_saved = []
@@ -306,11 +350,11 @@ class Yahtzee:
             if verbose or player_input:
                 print(f"The score you chose was: {score_choice}\n")
                 print("nice turn. Your score is: ", self.calculate_score())
-
         else:
+            score = 0
             self.sub_turn += 1
 
-        return
+        return score
 
     def calculate_score(self):
         singles = ["ones", "twos", "threes", "fours", "fives", "sixes"]
@@ -343,6 +387,7 @@ class Yahtzee:
         self.turn_number = 1
         self.sub_turn = 1
         self.dice_saved = []
+        self.chosen_scores = []  # 9 February added this tracker of chosen scores
         self.roll_dice()
         self.third_roll, self.second_roll, self.first_roll = self.empty_roll, self.empty_roll, self.empty_roll
         score_card = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind","four_of_a_kind",
