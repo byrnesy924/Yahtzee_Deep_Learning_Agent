@@ -25,10 +25,8 @@ Initial findings: unsurprisingly, a higher learning rate generated a higher aver
     Rather than treating these hyperparameters as directly correlated, it was assumed that the linear relationship may be more complex
     Therefore, a Bayesian approach was also explored
 """
-# TODO impliemnt a bayesian approach instead
 
-
-def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
+def test_model(epochs, learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
                reward_factor_total_score, reward_factor_chosen_score,
                reward_factor_for_picking_choice_correctly, punish_amount_for_incorrect_score_choice,
                punish_for_not_picking_dice,
@@ -54,7 +52,7 @@ def test_model(learning_rate, gamma, reward_for_all_dice, reward_factor_for_init
         name=name
     )
 
-    model.run(8, 64, save_results=False, save_model=False, verbose=False)
+    model.run(epochs, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                reward_for_all_dice,

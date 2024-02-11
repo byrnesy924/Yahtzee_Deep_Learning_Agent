@@ -34,6 +34,7 @@ from NNQmodel import NNQPlayer
 pspace_BO = {
     "batch_size": (32, 128),
     "buffer_size": (32, 128),
+    "epochs": 16,
     "gamma": (0.88, 0.99),
     "learning_rate": (0.000_01, 0.001),
     "memory": (2_000, 10_000),
@@ -308,9 +309,7 @@ def transfer_rows_to_backup(file_path: Path, backup_file_path: Path):
 
 
 if __name__ == "__main__":
-    # Set # epochs from run function - this is only used for naming convention
-    # no_epochs = 512
-    no_epochs = 16
+    no_epochs = pspace_BO["epochs"]
     hparameter_testing = Path("Results/Hyperparameter_testing")
     epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
     results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
