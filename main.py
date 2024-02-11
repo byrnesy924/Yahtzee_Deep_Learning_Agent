@@ -69,6 +69,7 @@ if __name__ == '__main__':
     print(df.describe())
 
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
+    # TODO extra learning hyperparameters
     model_hyperparameters = {
         "learning_rate": 0.000_05,
         "gamma": 0.9,
@@ -76,19 +77,18 @@ if __name__ == '__main__':
         "reward_factor_for_initial_dice_picked": 0.85,
         "reward_factor_for_picking_choice_correctly": 6.5,
         "reward_factor_total_score": 1,
-        "reward_factor_chosen_score": 0.5,
+        "reward_factor_chosen_score": 3.5,
         "batch_size": 75,
         "buffer_size": 100,
         "length_of_memory": 4800,
-        "name": "Inital_HP_tuned_8192"
+        "name": "Testing_HP_score_for_picking_choice_correctly_2"
     }
 
     yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
     start = time.perf_counter()
 
     # Train Model
-    epochs = 8192
+    epochs = 512
     games_per_eopch = 64
-    yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=True, verbose=False)
-    # yahtzee_player.run(8192, 64, save_results=True, save_model=True, verbose=False)
+    yahtzee_player.run(epochs, games_per_eopch, save_results=False, save_model=False, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_eopch} games in {epochs} epochs")
