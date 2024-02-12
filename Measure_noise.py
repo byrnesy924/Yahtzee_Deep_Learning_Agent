@@ -48,14 +48,18 @@ if __name__ == "__main__":
     start = perf_counter()
 
     no_processes = os.cpu_count() - 10
-    args = [(1, model_hyperparameters) for i in range(no_processes)]
+    args = [(100, model_hyperparameters) for i in range(no_processes)]
 
     with pool.Pool(no_processes) as pool:
         results_list = [res for res in pool.starmap(wrapper_function, args)]
 
-    results = [].extend(item for item in results_list)
-    print(results)
+    results = []
+    for item in results_list:
+        results.extend(item)
     results_df = pd.DataFrame(results, columns=["Target"])
+
+    print(f"Took {perf_counter() - start}s to run and do {model_hyperparameters['epochs']} epochs with ",
+          f"{no_processes} processes")
 
     fig, ax = plt.subplots(2, 2, figsize=(30, 30))
 
@@ -63,6 +67,9 @@ if __name__ == "__main__":
     sns.swarmplot(data=results_df["Target"], size=5, ax=ax[0, 1])
     sns.boxplot(data=results_df["Target"], ax=ax[1, 0])
     sns.violinplot(data=results_df["Target"], ax=ax[1, 1])
-
     fig.savefig(epochs_path / "Visualisation.png")
+
+    plt.show()
     plt.close()
+
+    results.to_csv(results_path)
