@@ -16,17 +16,18 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32):  # TODO Experiment with architecture as a hyper parameter
+    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32):
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
         :param num_samples: the number of samples to train the model on
         :param num_states: the number of inputs, i.e. the states of the game
         """
+        # TODO Experiment with architecture as a hyper parameter
         super(QLearningModel, self).__init__()
         self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
         self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')  # TODO experiment with changed arhcitecture
+        self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
         self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
         # Also need to change call method
 
@@ -66,7 +67,8 @@ class QLearningModel(tf.keras.Model):
     def train_step(self, states, actions, rewards):
         """ Training step function
         This is deprecated - the actual method is implimented in the NNQ object, and uses a target
-        model and an actual model. This is "Double Deep Q learning" See here https://towardsdatascience.com/double-deep-q-networks-905dd8325412
+        model and an actual model. This is "Double Deep Q learning" See here
+        https://towardsdatascience.com/double-deep-q-networks-905dd8325412
 
         """
         with tf.GradientTape() as tape:
@@ -138,8 +140,10 @@ class NNQPlayer(Yahtzee):
         # Hyperparameters of Reward Structure
         self.reward_for_all_dice = reward_for_all_dice  # the amount it gets for picking a dice
         self.punish_for_not_picking_dice = punish_factor_not_picking_dice  # If it doesnt pick dice punish it
-        self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked  # reward for each inital dice chosen (not at end of round)
-        self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly  # Reward it for actually choosing something
+        # reward for each inital dice chosen (not at end of round)
+        self.reward_factor_for_initial_dice_picked = reward_factor_for_initial_dice_picked
+        # Reward it for actually choosing something
+        self.reward_factor_for_picking_choice_correctly = reward_factor_for_picking_choice_correctly
         self.reward_factor_total_score = reward_factor_total_score  # Reward multiplier for its current score
         self.reward_factor_chosen_score = reward_factor_chosen_score
         self.punish_amount_for_incorrect_score_choice = punish_amount_for_incorrect_score_choice
@@ -430,7 +434,7 @@ class NNQPlayer(Yahtzee):
             reward = self.reward_factor_chosen_score*(updated_score - current_score)
         self.recorded_rewards["reward_factor_chosen_score"].append(reward)
 
-        # Score is returned by the Yahtzee Game, if it is None then the score was picked that was previously picked in the game
+        # Score is returned by the Yahtzee Game, if it is None then the chosen score was previously picked in the game
         if score is None:
             reward -= self.punish_amount_for_incorrect_score_choice
             self.recorded_rewards["punish_amount_for_incorrect_score_choice"].append(

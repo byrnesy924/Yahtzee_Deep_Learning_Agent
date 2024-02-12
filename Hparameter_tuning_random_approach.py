@@ -22,9 +22,11 @@ Initial findings: unsurprisingly, a higher learning rate generated a higher aver
     R1 had very little correlation
     R2 had a slight negative correlation
 
-    Rather than treating these hyperparameters as directly correlated, it was assumed that the linear relationship may be more complex
+    Rather than treating these hyperparameters as directly correlated, it was assumed that the relationship
+    may be more complex/non-linear
     Therefore, a Bayesian approach was also explored
 """
+
 
 def test_model(epochs, learning_rate, gamma, reward_for_all_dice, reward_factor_for_initial_dice_picked,
                reward_factor_total_score, reward_factor_chosen_score,
@@ -90,12 +92,12 @@ def plot_hyperparameter_space(results: pd.DataFrame):
 
     pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     plt.show()
-    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.jpeg") 
+    plt.savefig("Results\\Hyperparameter_testing\\Random_Hyperparameter_testing_results.jpeg")
     plt.close()
     return
 
 
-def plot_correlation_heatmap(results: pd.DataFrame()):
+def plot_correlation_heatmap(results: pd.DataFrame):
     heatmap = sns.heatmap(results.corr(), annot=True)
     # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     plt.show()

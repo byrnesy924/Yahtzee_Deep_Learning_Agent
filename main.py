@@ -1,5 +1,6 @@
 """
-Inspiration for this project: https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
+Inspiration for this project:
+https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
 Also: https://medium.com/p/b6bf911b6b2c <- great article on using a target model
 https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf <- Another Q learning approach.
     ^ Where methods differ is in structure of game and heirarchy. Mine assumes reroll always,
@@ -8,7 +9,8 @@ https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf <- Another Q
 Plus playing Yahtzee with my Partner's family :)
 TODO change this DocString and put in ReadMe and put acknowledgments
 
-Also see https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
+Also see:
+https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
 ^ This is a PHD student who did basically the same thing
 
 Also looks like James Glenn is the guy in this field - at Stanford or Yale or something
