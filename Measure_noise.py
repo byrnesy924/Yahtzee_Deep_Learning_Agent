@@ -47,8 +47,8 @@ if __name__ == "__main__":
 
     start = perf_counter()
 
-    no_processes = os.cpu_count() - 10
-    args = [(100, model_hyperparameters) for i in range(no_processes)]
+    no_processes = os.cpu_count() - 9
+    args = [(4, model_hyperparameters) for i in range(no_processes)]
 
     with pool.Pool(no_processes) as pool:
         results_list = [res for res in pool.starmap(wrapper_function, args)]
@@ -58,11 +58,32 @@ if __name__ == "__main__":
         results.extend(item)
     results_df = pd.DataFrame(results, columns=["Target"])
 
-    print(f"Took {perf_counter() - start}s to run and do {model_hyperparameters['epochs']} epochs with ",
-          f"{no_processes} processes")
+    print(f"Took {(perf_counter() - start)}mins to run and do {model_hyperparameters['epochs']} epochs with ",
+          f"{no_processes} processes which yielded {model_hyperparameters['epochs']*no_processes} runs")
 
     fig, ax = plt.subplots(2, 2, figsize=(30, 30))
+    fig.suptitle("Results from this run")
+    sns.histplot(data=results_df["Target"], kde=True, ax=ax[0, 0])
+    sns.swarmplot(data=results_df["Target"], size=5, ax=ax[0, 1])
+    sns.boxplot(data=results_df["Target"], ax=ax[1, 0])
+    sns.violinplot(data=results_df["Target"], ax=ax[1, 1])
+    # fig.savefig(epochs_path / "Visualisation.png")
 
+    plt.show()
+    plt.close()
+
+    if os.path.isfile(results_path):
+        previous_results = pd.read_csv(results_path)
+        current_results = pd.DataFrame(results, columns=["Target Score"])
+        all_results = pd.concat([previous_results, current_results])
+    else:
+        all_results = pd.DataFrame(results, columns=["Target Score"])
+
+    print(f"In total there are {len(all_results)} measurements")
+
+    # Plot all results
+    fig, ax = plt.subplots(2, 2, figsize=(30, 30))
+    fig.suptitle("Results from this run")
     sns.histplot(data=results_df["Target"], kde=True, ax=ax[0, 0])
     sns.swarmplot(data=results_df["Target"], size=5, ax=ax[0, 1])
     sns.boxplot(data=results_df["Target"], ax=ax[1, 0])
@@ -72,4 +93,5 @@ if __name__ == "__main__":
     plt.show()
     plt.close()
 
-    results.to_csv(results_path)
+    print(all_results.describe())
+    all_results.to_csv(results_path, index=False)
