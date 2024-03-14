@@ -108,7 +108,7 @@ class NNQPlayer(Yahtzee):
                  reward_factor_total_score=0.4,
                  reward_factor_chosen_score=1,
                  punish_factor_not_picking_dice=0,
-                 punish_amount_for_incorrect_score_choice=-2,
+                 punish_amount_for_incorrect_score_choice=-3,
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
