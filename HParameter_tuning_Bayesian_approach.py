@@ -34,7 +34,7 @@ from NNQmodel import NNQPlayer
 pspace_BO = {
     "batch_size": (32, 128),
     "buffer_size": (32, 128),
-    "epochs": 16,
+    "epochs": 12,
     "gamma": (0.88, 0.99),
     "learning_rate": (0.000_01, 0.001),
     "memory": (2_000, 10_000),
@@ -331,8 +331,8 @@ if __name__ == "__main__":
 
     start = perf_counter()
 
-    no_processes = os.cpu_count() - 10
-    args = [(pspace_BO, no_epochs, 8, 40, load_results) for i in range(no_processes)]
+    no_processes = os.cpu_count() - 6
+    args = [(pspace_BO, no_epochs, 8, 30, load_results) for i in range(no_processes)]
     # Single version:
     # results = run_BO(BO_HParameters=pspace_BO,
     #                  number_epochs=no_epochs,
