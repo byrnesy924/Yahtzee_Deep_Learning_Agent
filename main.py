@@ -22,6 +22,7 @@ Notes on approach:
     i.e. Q(s, a) = V(s, a) + C(s,a ) where V is a subtask (e.g. choosing dice) and C is a completion task
     This reduces the sparcity of rewards, greatly improving performance and learning
 
+Also add write up about noise measurement - noise relative to signal
 
 
 """
@@ -73,24 +74,26 @@ if __name__ == '__main__':
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
     # TODO extra learning hyperparameters
     model_hyperparameters = {
-        "learning_rate": 0.000_05,
-        "gamma": 0.9,
-        "reward_for_all_dice": 2,
-        "reward_factor_for_initial_dice_picked": 0.85,
-        "reward_factor_for_picking_choice_correctly": 6.5,
-        "reward_factor_total_score": 1,
+        "learning_rate": 0.000_25,
+        "gamma": 0.92,
+        "reward_for_all_dice": 5,
+        "reward_factor_for_initial_dice_picked": 0.45,
+        "reward_factor_for_picking_choice_correctly": 5.2,
+        "reward_factor_total_score": 1.7,
         "reward_factor_chosen_score": 3.5,
-        "batch_size": 75,
+        "punish_factor_not_picking_dice": -0.3,
+        "punish_amount_for_incorrect_score_choice": -3,
+        "batch_size": 100,
         "buffer_size": 100,
         "length_of_memory": 4800,
-        "name": "Testing_HP_score_for_picking_choice_correctly_2"
+        "name": "Testing_HP_bug_fixed"
     }
 
     yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
     start = time.perf_counter()
 
     # Train Model
-    epochs = 512
+    epochs = 8192
     games_per_eopch = 64
     yahtzee_player.run(epochs, games_per_eopch, save_results=False, save_model=False, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_eopch} games in {epochs} epochs")
