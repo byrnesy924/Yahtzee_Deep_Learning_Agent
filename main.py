@@ -71,8 +71,11 @@ if __name__ == '__main__':
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
     print(df.describe())
 
+    # Attempt to reduce memory usage
+    del random_player
+
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
-    # TODO extra learning hyperparameters
+    # TODO architecture of the model itself
     model_hyperparameters = {
         "learning_rate": 0.000_25,
         "gamma": 0.92,
