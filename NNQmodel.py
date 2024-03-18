@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 import tensorflow as tf
 import numpy as np
@@ -185,8 +186,8 @@ class NNQPlayer(Yahtzee):
             os.makedirs(self.results_path)
 
         # Overall score of the model - used for hyperparameter tuning
-        self.average_score = None  # update after running
-        self.average_loss = None  # update after running
+        self.average_score = None  # float - update after running
+        self.average_loss = None  # float - update after running
 
         super().__init__()  # TODO this might be not necessary
 
@@ -563,13 +564,24 @@ class NNQPlayer(Yahtzee):
                     print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
 
             # Log variables
-            if epoch % 16 == 2:  # updated to 16 to save disk space of memory
+            if epoch % 32 == 2:  # updated to 32 to save disk space of memory
                 # print(f"Epoch {epoch} finished")  # Convenient to check on training progress
                 if save_results:
                     # Form of logging - save to a csv
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
+
+                    # Some temporary debugging garbage for managing memory # TODO log this properly
+                    print(f"Saving memory for epoch{epoch}. The state of the model is as follows:\n")
+                    print(f"Recorded rewards (size {sys.getsizeof(self.recorded_rewards)/1_000_000} MB) has {len([item for lst in self.recorded_rewards.values() for item in lst])} number of rewards in it.")  # The double list comprehension flattens the values                
+                    print(f"The size of the models themselves are {sys.getsizeof(self.dqn_model)/1_000_000} and {sys.getsizeof(self.dqn_target)/1_000_000} MB")
+                    print(f"The size of the memory is {sys.getsizeof(self.memory)/1_000_000} MB (ntoe length is {len(self.memory)}))")
+                    print(f"The score tracker df's are as follows:\nSingles: {self.score_tracker_singles.memory_usage()}\nSpecials: {self.score_tracker_special.memory_usage()}")
+                    print(F"The total size of the object is {sys.getsizeof(self)}")
+
+                    print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
+
 
         # Save the TF model and its results
         if save_model:
@@ -713,6 +725,6 @@ class NNQPlayer(Yahtzee):
 if __name__ == '__main__':
     start = time.perf_counter()
     agent = NNQPlayer()
-    agent.run(75, 64)
+    agent.run(75, 64, verbose=True)
 
     print(f"Took {time.perf_counter() - start} seconds")
