@@ -72,7 +72,7 @@ if __name__ == '__main__':
     print(df.describe())
 
     # Attempt to reduce memory usage
-    del random_player
+    del random_player, df
 
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
     # TODO architecture of the model itself
@@ -98,5 +98,5 @@ if __name__ == '__main__':
     # Train Model
     epochs = 8192
     games_per_eopch = 64
-    yahtzee_player.run(epochs, games_per_eopch, save_results=False, save_model=False, verbose=False)
+    yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=False, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_eopch} games in {epochs} epochs")

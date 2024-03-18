@@ -572,7 +572,7 @@ class NNQPlayer(Yahtzee):
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
-                    # Some temporary debugging garbage for managing memory #TODO log this properly
+                    # Some temporary debugging garbage for managing memory # TODO log this properly
                     print(f"Saving memory for epoch{epoch}. The state of the model is as follows:\n")
                     print(f"Recorded rewards (size {sys.getsizeof(self.recorded_rewards)/1_000_000} MB) has {len([item for lst in self.recorded_rewards.values() for item in lst])} number of rewards in it.")  # The double list comprehension flattens the values                
                     print(f"The size of the models themselves are {sys.getsizeof(self.dqn_model)/1_000_000} and {sys.getsizeof(self.dqn_target)/1_000_000} MB")
