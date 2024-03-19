@@ -79,6 +79,7 @@ if __name__ == '__main__':
     model_hyperparameters = {
         "learning_rate": 0.000_25,
         "gamma": 0.92,
+        "model_architecture": [16, 16, 16],
         "reward_for_all_dice": 5,
         "reward_factor_for_initial_dice_picked": 0.45,
         "reward_factor_for_picking_choice_correctly": 5.2,
@@ -92,11 +93,19 @@ if __name__ == '__main__':
         "name": "Testing_HP_bug_fixed"
     }
 
-    yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
-    start = time.perf_counter()
-
     # Train Model
-    epochs = 8192
-    games_per_eopch = 64
-    yahtzee_player.run(epochs, games_per_eopch, save_results=True, save_model=False, verbose=False)
-    print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_eopch} games in {epochs} epochs")
+    epochs = 64
+    games_per_epoch = 64
+    number_tests = 1
+
+    # Test how long it takes with the changes it the call method, and see if it makes a difference
+    time_length = []
+    for i in range(number_tests):
+        start = time.perf_counter()
+        yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
+        yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=False, verbose=False)
+        time_length.append((time.perf_counter - start)/60)
+
+    with open("time_results.txt", "w") as f:
+        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch}")
+        f.write(f"the average time per run was {sum(time_length)/len(time_length)}")
