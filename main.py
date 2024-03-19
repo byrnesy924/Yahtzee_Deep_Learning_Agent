@@ -102,9 +102,10 @@ if __name__ == '__main__':
     time_length = []
     for i in range(number_tests):
         start = time.perf_counter()
-        yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
-        yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=False, verbose=False)
+        yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
+        yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
         time_length.append((time.perf_counter - start)/60)
+        print(f"Took {time_length[-1]} minutes")
 
     with open("time_results.txt", "w") as f:
         f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch}")

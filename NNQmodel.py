@@ -665,7 +665,7 @@ class NNQPlayer(Yahtzee):
         # del single_scores
 
         self.score_tracker_special = pd.concat(
-            [self.score_tracker_special, df_special_score], copy=False)  # unsure why pycharm cant see
+            [self.score_tracker_special, df_special_score], copy=False)
         self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores], copy=False)
         return
 
