@@ -17,20 +17,29 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32):
+    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32, structure_of_layers=None):
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
         :param num_samples: the number of samples to train the model on
         :param num_states: the number of inputs, i.e. the states of the game
+        :param structure_of_layers: list or None - provide this to parameterise the architecture of the network.
         """
-        # TODO Experiment with architecture as a hyper parameter
+        
         super(QLearningModel, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
-        # Also need to change call method
+        # Using structure of layers -> parameterize the architecture.
+        # If argument is none, assume three layers, use num_nodes_per_layer
+        self.structure_of_layers = structure_of_layers
+        if structure_of_layers is None:
+            self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+            self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+            self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+            self.output_layer = tf.keras.layers.Dense(num_actions)
+        else:
+            if not isinstance(structure_of_layers, list):
+                raise Exception("Pass a list of integers to the Q learning network to parameterize architecture")
+            self.dense_layers = [tf.keras.layers.Dense(no_nodes) for no_nodes in structure_of_layers]
+            self.output_layer = tf.keras.layers.Dense(num_actions)
 
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
@@ -59,9 +68,14 @@ class QLearningModel(tf.keras.Model):
         # self.rewards = np.random.rand(num_samples)  # Vector of num_samples in length
 
     def call(self, inputs):
-        x = self.dense1(inputs)
-        x = self.dense2(x)
-        x = self.dense3(x)
+        if self.structure_of_layers is None:
+            x = self.dense1(inputs)
+            x = self.dense2(x)
+            x = self.dense3(x)
+        else:
+            x = self.dense_layers[0](inputs)
+            for layer in self.dense_layers[1:]:
+                x = layer(x)
         return self.output_layer(x)
 
     @tf.function
@@ -85,6 +99,7 @@ class QLearningModel(tf.keras.Model):
 
     # This train method is deprecated
     def train_model_epoch(self, num_epochs, num_samples, batch_size):
+        """Deprecated, was used for learning and testing"""
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
             for i in range(0, num_samples, batch_size):
@@ -103,6 +118,7 @@ class NNQPlayer(Yahtzee):
     def __init__(self, large_nnq_output=True,
                  learning_rate=0.000001,
                  gamma=0.99,
+                 model_architecture=[32, 32, 32],
                  reward_for_all_dice=5,
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
@@ -114,7 +130,7 @@ class NNQPlayer(Yahtzee):
                  batch_size=64,
                  buffer_size=32,
                  show_figures=False,
-                 name="Basic"
+                 name="Basic",
                  ):
         """
         Inherits from Yahtzee, stores
@@ -161,8 +177,16 @@ class NNQPlayer(Yahtzee):
             "reward_factor_chosen_score": [],
         }
 
-        self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
-        self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
+        self.dqn_model = QLearningModel(num_states=self.state_size,
+                                        num_actions=self.action_size,
+                                        num_samples=1000, 
+                                        structure_of_layers=model_architecture
+                                        )
+        self.dqn_target = QLearningModel(num_states=self.state_size, 
+                                         num_actions=self.action_size,
+                                         num_samples=1000, 
+                                         structure_of_layers=model_architecture
+                                         )
         self.optimizers = tf.keras.optimizers.Adam(learning_rate=self.learning_rate, )
 
         # Memory size to train on
@@ -571,17 +595,6 @@ class NNQPlayer(Yahtzee):
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
-
-                    # Some temporary debugging garbage for managing memory # TODO log this properly
-                    print(f"Saving memory for epoch{epoch}. The state of the model is as follows:\n")
-                    print(f"Recorded rewards (size {sys.getsizeof(self.recorded_rewards)/1_000_000} MB) has {len([item for lst in self.recorded_rewards.values() for item in lst])} number of rewards in it.")  # The double list comprehension flattens the values                
-                    print(f"The size of the models themselves are {sys.getsizeof(self.dqn_model)/1_000_000} and {sys.getsizeof(self.dqn_target)/1_000_000} MB")
-                    print(f"The size of the memory is {sys.getsizeof(self.memory)/1_000_000} MB (ntoe length is {len(self.memory)}))")
-                    print(f"The score tracker df's are as follows:\nSingles: {self.score_tracker_singles.memory_usage()}\nSpecials: {self.score_tracker_special.memory_usage()}")
-                    print(F"The total size of the object is {sys.getsizeof(self)}")
-
-                    print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
-
 
         # Save the TF model and its results
         if save_model:
