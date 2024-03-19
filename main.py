@@ -108,5 +108,5 @@ if __name__ == '__main__':
         print(f"Took {time_length[-1]} minutes")
 
     with open("time_results.txt", "w") as f:
-        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch}")
+        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {model_hyperparameters["model_architecture"]}")
         f.write(f"the average time per run was {sum(time_length)/len(time_length)}")
