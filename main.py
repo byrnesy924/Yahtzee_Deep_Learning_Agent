@@ -95,18 +95,20 @@ if __name__ == '__main__':
 
     # Train Model
     epochs = 64
-    games_per_epoch = 64
-    number_tests = 1
+    games_per_epoch = 8
+    number_tests = 10
 
     # Test how long it takes with the changes it the call method, and see if it makes a difference
+    # maybe multi thread this
     time_length = []
     for i in range(number_tests):
         start = time.perf_counter()
         yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
         yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
-        time_length.append((time.perf_counter - start)/60)
+        time_length.append((time.perf_counter() - start)/60)
         print(f"Took {time_length[-1]} minutes")
 
     with open("time_results.txt", "w") as f:
-        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {model_hyperparameters["model_architecture"]}")
+        architecture = model_hyperparameters["model_architecture"]
+        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {architecture}")
         f.write(f"the average time per run was {sum(time_length)/len(time_length)}")
