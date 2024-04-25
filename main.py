@@ -102,6 +102,8 @@ if __name__ == '__main__':
         "name": "Testing_HP_bug_fixed",
     }
 
+    yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
+
     # Train Model
     epochs = 2048
     games_per_epoch = 64
