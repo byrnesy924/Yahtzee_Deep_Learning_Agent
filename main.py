@@ -31,6 +31,9 @@ import pandas as pd
 import cProfile
 import pstats
 
+from pympler import asizeof  # Accurate memory analysis
+
+
 from Yahtzee import Yahtzee
 from NNQmodel import NNQPlayer
 
@@ -62,6 +65,13 @@ def profile_code(model):
     return ps
 
 
+def check_all_variables(yahtzee_player):
+    print("Local variables: \n ", asizeof.asized(locals(), detail=1).format())
+    print("Dict of the yahtzee player: \n", asizeof.asized(yahtzee_player.__dict__, detail=1).format())
+    print("Dir of variables is of size: \n ", asizeof.asized(dir(yahtzee_player), detail=1).format())
+    print("Size of global variables: \n ", asizeof.asized(globals(), detail=1).format())
+
+
 if __name__ == '__main__':
     start = time.perf_counter()
     random_player = Yahtzee(player_type="random")
@@ -75,7 +85,6 @@ if __name__ == '__main__':
     del random_player, df
 
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
-    # TODO architecture of the model itself
     model_hyperparameters = {
         "learning_rate": 0.000_25,
         "gamma": 0.92,
@@ -90,25 +99,29 @@ if __name__ == '__main__':
         "batch_size": 100,
         "buffer_size": 100,
         "length_of_memory": 4800,
-        "name": "Testing_HP_bug_fixed"
+        "name": "Testing_HP_bug_fixed",
     }
 
     # Train Model
-    epochs = 64
-    games_per_epoch = 8
-    number_tests = 10
+    epochs = 2048
+    games_per_epoch = 64
+    yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
+    print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")
 
-    # Test how long it takes with the changes it the call method, and see if it makes a difference
-    # maybe multi thread this
-    time_length = []
-    for i in range(number_tests):
-        start = time.perf_counter()
-        yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
-        yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
-        time_length.append((time.perf_counter() - start)/60)
-        print(f"Took {time_length[-1]} minutes")
+    check_all_variables(yahtzee_player)
 
-    with open("time_results.txt", "w") as f:
-        architecture = model_hyperparameters["model_architecture"]
-        f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {architecture}")
-        f.write(f"the average time per run was {sum(time_length)/len(time_length)}")
+    # number_tests = 10
+
+    # time_length = []
+    # for i in range(number_tests):
+    #     start = time.perf_counter()
+    #     yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
+    #     yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
+    #     time_length.append((time.perf_counter() - start)/60)
+    #     print(f"Took {time_length[-1]} minutes")
+
+    # with open("time_results.txt", "w") as f:
+    #     # architecture = model_hyperparameters["model_architecture"]
+    #     architecture = [16, 16, 16]
+    #     f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {architecture}")
+    #     f.write(f"the average time per run was {sum(time_length)/len(time_length)}")

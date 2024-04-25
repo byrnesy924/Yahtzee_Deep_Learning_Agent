@@ -12,7 +12,7 @@
 
 
 # Yahtzee_AI: Overview of the Double Deep Q Learning Agent
-This project creates and trains a deep learning agent to play the game of Yatzhee. Yahtzee is involves a significant amount of probability, while also giving rise to complex tactics and strategies through player choice. Although the game is simple, the progressive nature of allocating dice rolls into a specific score choice means that the state space of the game is large and increases exponentially with the number of players - there are 19 billion unique states in a single player game and $≈ (213·100)^n · 6^5· 3$ unique states in an n player game (Kang, Schroeder 2018) #TODO CHECK. It requires players to make both strategic and tactical decisions and balance their long term and short term interests.
+This project creates and trains a deep learning agent to play the game of Yatzhee. Yahtzee is primarily a game of chance, but also gives rise to complex tactics and strategies through player choice. Although the game is simple, the progressive nature of allocating dice rolls into a specific score choice means that the state space of the game is significant and increases exponentially with the number of players - there are 19 billion unique states in a single player game and $≈ (213·100)^n · 6^5· 3$ unique states in an n player game (Kang, Schroeder 2018) #TODO CHECK. It requires players to make both strategic and tactical decisions and balance their long term and short term interests.
 
 After beginning development of this project and during research for it, I came across the following paper that takes a similar approach # TODO check language here.
 [2018 stanford paper](https://web.stanford.edu/class/aa228/reports/2018/final75.pdf)
@@ -34,6 +34,13 @@ TBD
 
 # Model architecture
 Lorem ipsum
+- Q learning
+- Double Deep Q learning
+    - papers for it:
+    - https://www.semanticscholar.org/paper/Deep-Reinforcement-Learning-with-Double-Q-Learning-Hasselt-Guez/3b9732bb07dc99bde5e1f9f75251c6ea5039373e
+    - https://arxiv.org/abs/1509.06461
+    - https://dl.acm.org/doi/10.5555/3016100.3016191
+    - https://ai.stackexchange.com/questions/21515/is-there-any-good-reference-for-double-deep-q-learning
 
 # Development and experimentation
 Lorem ipsum
