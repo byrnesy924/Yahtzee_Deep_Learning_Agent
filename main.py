@@ -105,7 +105,7 @@ if __name__ == '__main__':
     start = time.perf_counter()
 
     # Train Model
-    epochs = 128
+    epochs = 2048
     games_per_epoch = 64
     yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")

@@ -151,6 +151,7 @@ class NNQPlayer(Yahtzee):
 
         # Record the rewards gained to get a better insight into how it is optimising the reward space
         # Each time a reward is received it is appended onto here
+        # TODO switch to a polars dataframe to save space. For now this uses half memory by using np.float16
         self.recorded_rewards = pd.DataFrame(columns=[
             "reward_for_all_dice",
             "punish_for_not_picking_dice",
@@ -159,7 +160,7 @@ class NNQPlayer(Yahtzee):
             "reward_factor_for_picking_choice_correctly",
             "reward_factor_total_score",
             "reward_factor_chosen_score"
-        ]
+        ], dtype=np.float16
         )
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
