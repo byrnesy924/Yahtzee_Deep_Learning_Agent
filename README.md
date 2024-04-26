@@ -10,6 +10,7 @@
 ![Final score](https://github.com/byrnesy924/Yatzhee_AI/assets/89000131/93157c57-05bc-43ef-a47b-5b0957a3d9a4)
 ![Special scores over time](https://github.com/byrnesy924/Yatzhee_AI/assets/89000131/bb1f376d-674f-47e2-922f-0b65565f2516)
 
+TODO check spelling in word
 
 # Yahtzee_AI: Overview of the Double Deep Q Learning Agent
 This project creates and trains a deep learning agent to play the game of Yatzhee. Yahtzee is primarily a game of chance, but also gives rise to complex tactics and strategies through player choice. Although the game is simple, the progressive nature of allocating dice rolls into a specific score choice means that the state space of the game is significant and increases exponentially with the number of players - there are 19 billion unique states in a single player game and $≈ (213·100)^n · 6^5· 3$ unique states in an n player game (Kang, Schroeder 2018) #TODO CHECK. It requires players to make both strategic and tactical decisions and balance their long term and short term interests.
