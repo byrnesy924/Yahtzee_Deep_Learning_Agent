@@ -85,8 +85,9 @@ The optimisation method produced a number of results, but also had some limitati
 - Because of the high number of hyperparameters (reward factors, model hyperparameters like learning rate, gamma, length of memory, batch size, model architecture etc) improving the performance of hyperparameters was difficult with limited access to compute
 - Another concern of mine was potential non-linearity of learning; performance in the first 1000 games does not necessarily translate to optimal policy choice
 See below for a visualisation of the hyper-parameter tuning
-# TODO - Visualisation
-# TODO Grokking and long training
+
+TODO - Visualisation
+TODO Grokking and long training
 - Experiments with grokking - training for longer with stronger hardware
 
 # Installation and usage
