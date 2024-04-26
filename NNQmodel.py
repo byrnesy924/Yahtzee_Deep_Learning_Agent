@@ -1,5 +1,5 @@
+""" Utils that contain Q Learning agent"""
 import os
-import sys
 import pandas as pd
 import tensorflow as tf
 import numpy as np
@@ -585,7 +585,6 @@ class NNQPlayer(Yahtzee):
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
 
                     print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
-
 
         # Save the TF model and its results
         if save_model:

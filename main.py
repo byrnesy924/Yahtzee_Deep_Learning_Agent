@@ -1,29 +1,43 @@
 """
-Inspiration for this project:
-https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
-Also: https://medium.com/p/b6bf911b6b2c <- great article on using a target model
-https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf <- Another Q learning approach.
-    ^ Where methods differ is in structure of game and heirarchy. Mine assumes reroll always,
+This project contains a neural network agent that learns to play the game Yatzhee.
+
+The original inspiration came from playing Yahtzee with my partner's family, and wondering if:
+1. Yahtzee was a game where strategy choices/policy could be optimised (and how)
+2. What ML methods would be good for optimising this strategy
+
+Further, I had never worked with deep learning before this point, and so it made sense
+    to take a reinforcement learning approach.
+
+The approach is a Double Deep Q Learning Method. To break this down:
+- Q learning is a type of reinforcement learning. It is a model-free approach.
+- Deep refers to the use of a neural network to impliment the Q learning algorithm.
+    - Using a nueral network is not necessary, but as per (Kang, Schroeder 2018) below is necessary
+- Double refers to using two networks - a normal model and a target
+    - This is a technique that reduces maximisation bias and can improve policy choice
+
+This is also a heirarchical approach (Max Q learning). The agent is rewarded for doing things like choosing scores and
+    choosing dice, but also rewarded for the score at the end of each turn and their overall score in the game
+    i.e. Q(s, a) = V(s, a) + C(s,a) where V is a subtask (e.g. choosing dice) and C is a completion task
+    This reduces the sparcity of rewards, improving performance, learning and the final policy choice
+
+Included in this project were a few other pieces:
+- Measuring the noise by training the agent multiple with the same hyper-parameters and examining the results
+- Optimising the hyperparameters with Bayesian Optimisation
+    - There is also a script that uses a random tuning approach to optimisation
+
+Other resources and inspiration for this project:
+Initially used to help write code:
+    https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
+Great article on using a double q learning model:
+    https://medium.com/p/b6bf911b6b2c
+Another Q Learning approach related to Yahtzee :
+    https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf
+    ^ Where methods differ is in the implimentation of the game and heirarchy. This project assumes reroll always,
     which is more computationally expensive, but the agent does not need to learn to choose to reroll
     so it is easier to impliment
-Plus playing Yahtzee with my Partner's family :)
-TODO change this DocString and put in ReadMe and put acknowledgments
-
-Also see:
-https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
-^ This is a PHD student who did basically the same thing
-
-Also looks like James Glenn is the guy in this field - at Stanford or Yale or something
-
-Notes on approach:
-- Uses Double Deep Q Learning method
-- Also uses a Heirarchy approach (MaxQ Q-learning). The agent is rewarded for doing things like choosing scores and
-    choosing dice, but also rewarded for the score at the end of each turn and their overall score in the game
-    i.e. Q(s, a) = V(s, a) + C(s,a ) where V is a subtask (e.g. choosing dice) and C is a completion task
-    This reduces the sparcity of rewards, greatly improving performance and learning
-
-Also add write up about noise measurement - noise relative to signal
-
+I found this PhD student had a very similar approach as well:
+    https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
+Further reading includes the research of James Glenn, who also has a lot of work in this area.
 
 """
 import time
