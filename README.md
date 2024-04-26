@@ -46,6 +46,7 @@ Following this, the approach taken is a heirarchical approach (Max Q learning).
 In this, the agent is rewarded for doing things like choosing scores and
     choosing dice, but also rewarded for the score at the end of each turn and their overall score in the game
     i.e. Q(s, a) = V(s, a) + C(s,a) where V is a subtask (e.g. choosing dice) and C is a completion task
+
 This:
 - reduces the sparcity of rewards
 - improves performance, learning and the final policy choice
