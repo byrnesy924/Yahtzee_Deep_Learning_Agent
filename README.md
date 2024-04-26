@@ -32,7 +32,7 @@ Inspiration, Inception of idea, presented initial results to work colleagues in 
 The approach is a Double Deep Q Learning Method. To break this down:
 - Q learning is a type of reinforcement learning. It is a model-free approach (rephrased, the agent does not assume anything in way of a model - it instead must learn soley from the environment)
 - Deep refers to the use of a neural network to impliment the Q learning algorithm.
-    - Using a nueral network is not necessary, but as per (TODO cite) below is necessary
+    - Using a neural network is not necessary, but as per (TODO cite) below is necessary
 - Double refers to using two networks - a normal model and a target
     - This is a technique that reduces maximisation bias and can improve policy choice
  
