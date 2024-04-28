@@ -1,6 +1,7 @@
 """ Utils that contain Q Learning agent"""
 import os
 import pandas as pd
+import polars as pl
 import tensorflow as tf
 import numpy as np
 import random
@@ -151,17 +152,18 @@ class NNQPlayer(Yahtzee):
 
         # Record the rewards gained to get a better insight into how it is optimising the reward space
         # Each time a reward is received it is appended onto here
-        # TODO switch to a polars dataframe to save space. For now this uses half memory by using np.float16
-        self.recorded_rewards = pd.DataFrame(columns=[
-            "reward_for_all_dice",
-            "punish_for_not_picking_dice",
-            "punish_amount_for_incorrect_score_choice",
-            "reward_factor_for_initial_dice_picked",
-            "reward_factor_for_picking_choice_correctly",
-            "reward_factor_total_score",
-            "reward_factor_chosen_score"
-        ], dtype=np.float16
-        )
+
+        # Polars implimentation
+        reward_cols = {
+            "reward_for_all_dice": pl.Float32,
+            "punish_for_not_picking_dice": pl.Float32,
+            "punish_amount_for_incorrect_score_choice": pl.Float32,
+            "reward_factor_for_initial_dice_picked": pl.Float32,
+            "reward_factor_for_picking_choice_correctly": pl.Float32,
+            "reward_factor_total_score": pl.Float32,
+            "reward_factor_chosen_score": pl.Float32
+        }
+        self.recorded_rewards = pl.DataFrame(schema=reward_cols)
 
         self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
         self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
@@ -436,25 +438,18 @@ class NNQPlayer(Yahtzee):
         else:
             reward = self.reward_factor_chosen_score*(updated_score - current_score)
 
-        # Handle converting recorded rewards into a dataframe to conserve memory (dictionary was eating RAM)
-        if len(self.recorded_rewards) == 0:
-            rewards_index = 0
-        else:
-            rewards_index = len(self.recorded_rewards)
-
-        self.recorded_rewards.loc[rewards_index, "reward_factor_chosen_score"] = reward
+        # Polars method - each of the rewards record to a variable and concat a arow at the end
+        recorded_awards_initial_reward = reward
 
         # Score is returned by the Yahtzee Game, if it is None then the chosen score was previously picked in the game
         if score is None:
-            punish_score = -1*self.punish_amount_for_incorrect_score_choice
+            recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
             reward -= self.punish_amount_for_incorrect_score_choice
         else:
-            punish_score = -1*self.punish_amount_for_incorrect_score_choice
-        self.recorded_rewards.loc[rewards_index, "punish_amount_for_incorrect_score_choice"] = punish_score
+            recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
 
         reward += self.reward_factor_total_score*updated_score  # this multiplyer is a hyper parameter
-        self.recorded_rewards.loc[rewards_index,
-                                  "reward_factor_total_score"] = self.reward_factor_total_score*updated_score
+        recorded_rewards_reward_factor_total_score = self.reward_factor_total_score*updated_score
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
         # Experimented with negative reward - findings, did not perform as well
@@ -475,12 +470,10 @@ class NNQPlayer(Yahtzee):
             if 0 < action_picked < 14:
                 # Double the reward for successfully choosing a score
                 # *(updated_score - current_score)
-                self.recorded_rewards.loc[rewards_index,
-                                          "reward_factor_for_picking_choice_correctly"
-                                          ] = self.reward_factor_for_picking_choice_correctly
+                recorded_reward_factor_for_picking_choice_correctly = self.reward_factor_for_picking_choice_correctly
                 reward += self.reward_factor_for_picking_choice_correctly  # *(updated_score - current_score)
             else:
-                self.recorded_rewards.loc[rewards_index, "reward_factor_for_picking_choice_correctly"] = 0
+                recorded_reward_factor_for_picking_choice_correctly = 0
 
             # Current Implementation - If it picked all its dice, reward it more. If it didn't, punish it
             if self.sub_turn == 1 and len(self.dice_saved) == 5:
@@ -503,13 +496,20 @@ class NNQPlayer(Yahtzee):
 
             # Note need to record 0 here in this branch
             # Record 0 if no reward
-            self.recorded_rewards.loc[rewards_index, "reward_factor_for_picking_choice_correctly"] = 0
+            recorded_reward_factor_for_picking_choice_correctly = 0
 
         # Record these reward factors
-        self.recorded_rewards.loc[rewards_index, "reward_factor_for_initial_dice_picked"] = reward_for_initial_dice
-        self.recorded_rewards.loc[rewards_index, "reward_for_all_dice"] = reward_for_all_dice
-        self.recorded_rewards.loc[rewards_index, "punish_for_not_picking_dice"] = punish_for_incorrect_choice
+        new_row = pl.DataFrame({
+            "reward_for_all_dice": reward_for_all_dice,
+            "punish_for_not_picking_dice": punish_for_incorrect_choice,
+            "punish_amount_for_incorrect_score_choice": recorded_rewards_punish_score,
+            "reward_factor_for_initial_dice_picked": reward_for_initial_dice,
+            "reward_factor_for_picking_choice_correctly": recorded_reward_factor_for_picking_choice_correctly,
+            "reward_factor_total_score": recorded_rewards_reward_factor_total_score,
+            "reward_factor_chosen_score": recorded_awards_initial_reward,
+        })
 
+        self.recorded_rewards = pl.concat([self.recorded_rewards, new_row], how="vertical_relaxed", rechunk=True)
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
 
