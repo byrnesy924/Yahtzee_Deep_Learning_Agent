@@ -690,7 +690,10 @@ class NNQPlayer(Yahtzee):
             plt.close()
 
     def plot_reward_gain_over_time(self) -> None:
-        df_rewards = self.recorded_rewards
+        if isinstance(self.recorded_rewards, pl.DataFrame):
+            df_rewards = self.recorded_rewards.to_pandas()
+        else:
+            df_rewards = self.recorded_rewards
         # plt.figure(figsize=(20, 100))
         df_rewards.plot(subplots=True, figsize=(20, 100))
         plt.title("Individual rewards over time")
