@@ -30,6 +30,8 @@ Initially used to help write code:
     https://medium.com/@carsten.friedrich/part-4-neural-network-q-learning-a-tic-tac-toe-player-that-learns-kind-of-2090ca4798d
 Great article on using a double q learning model:
     https://medium.com/p/b6bf911b6b2c
+Great article on Double Q learning approach:
+    https://davidrpugh.github.io/stochastic-expatriate-descent/pytorch/deep-reinforcement-learning/deep-q-networks/2020/04/11/double-dqn.html
 Another Q Learning approach related to Yahtzee :
     https://www.yahtzeemanifesto.com/reinforcement-learning-yahtzee.pdf
     ^ Where methods differ is in the implimentation of the game and heirarchy. This project assumes reroll always,
@@ -115,13 +117,36 @@ if __name__ == '__main__':
         "name": "Testing_HP_bug_fixed",
     }
 
-    yahtzee_player = NNQPlayer(show_figures=True, **model_hyperparameters)
+    yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
     start = time.perf_counter()
 
+    # TODO build ability to load weights to continue training
+
     # Train Model
-    epochs = 32
+    epochs = 1_000
     games_per_epoch = 64
-    yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
+    
+    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    one = time.perf_counter()
+    check_all_variables(yahtzee_player)
+    print(f"Took {(one - start)/3600} hours to do 1,000 epochs")
+    
+    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    two = time.perf_counter()
+    check_all_variables(yahtzee_player)
+    print(f"Took {(two - one)/3600} hours to do 1,000 epochs")
+
+
+    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    three = time.perf_counter()
+    check_all_variables(yahtzee_player)
+    print(f"Took {(three - two)/3600} hours to do 1,000 epochs")
+
+    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    four = time.perf_counter()
+    check_all_variables(yahtzee_player)
+    print(f"Took {(four - three)/3600} hours to do 1,000 epochs")
+
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")
 
     check_all_variables(yahtzee_player)
