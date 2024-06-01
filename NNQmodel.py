@@ -5,7 +5,12 @@ import polars as pl
 import tensorflow as tf
 import numpy as np
 import random
+
+import matplotlib as mpl
+mpl.rcParams['agg.path.chunksize'] = 10000  # exceeded cell block limit error on my PC machine - there is a github issue about this https://github.com/matplotlib/matplotlib/issues/5907
+
 import matplotlib.pyplot as plt
+
 import time
 # import sys
 
@@ -125,7 +130,7 @@ class NNQPlayer(Yahtzee):
 
         # Hyper parameters
         self.learning_rate = learning_rate
-        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output
+        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output because of divergence
         # https://stackoverflow.com/questions/39714374/nan-results-in-tensorflow-neural-network?rq=4
         self.gamma = gamma
 
@@ -310,6 +315,7 @@ class NNQPlayer(Yahtzee):
             dones = tf.convert_to_tensor(dones, dtype=tf.float32)
 
             # calculate the target q values by running the next states through the target DQN
+            # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
             target_q = self.dqn_target(tf.convert_to_tensor(np.vstack(next_states), dtype=tf.float32))
             if self.large_action_size:
                 # This is the updated method four output size of 18
@@ -336,8 +342,10 @@ class NNQPlayer(Yahtzee):
             target_value = (1 - dones) * self.gamma * target_value + rewards
             # Sudo code - if done, then reward is just reward (1-done). If not, then add on the target q* learning rate
 
+            # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
             main_q = self.dqn_model(tf.convert_to_tensor(np.vstack(states), dtype=tf.float32))
 
+            # TODO - validate this code
             main_value = tf.reduce_sum(actions * main_q, axis=1)
 
             # hand coded mean squared error between the two functions - could also use tf function
@@ -529,8 +537,15 @@ class NNQPlayer(Yahtzee):
         scorecards = []
 
         for epoch in range(number_of_epochs):
+            if epoch % 100 == 0:
+                # Quick and dirty way to monitor progress on another machine
+                print(f"Doing Epoch number {epoch}")
+            
+            # TODO - can hyperparameterise this to hone in on better inital exploration and tradeoff of exploration and exploitation in long run 
+            epsilon = max(0.985**epoch, 0.01)  # Epsilon greedy approach - epsilon % of time explore with random option, otherwise exploit knowledge. Decay epsilon
+            # Note that currently memory is 4800, which is 5 epochs; 
+  
             for game in range(games_per_epoch):
-                epsilon = 1 / (games_per_epoch * 0.1 + 1)
                 self.reset_game()
                 self.roll_dice()  # For some reason the dice aren't rolled at the start of the first game
 
@@ -583,8 +598,7 @@ class NNQPlayer(Yahtzee):
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
-
-                    print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
+                    # print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
 
         # Save the TF model and its results
         if save_model:
