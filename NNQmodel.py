@@ -132,6 +132,7 @@ class NNQPlayer(Yahtzee):
                  reward_factor_chosen_score=1,
                  punish_factor_not_picking_dice=0,
                  punish_amount_for_incorrect_score_choice=-3,
+                 structure_of_layers=[32, 32, 32],
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
@@ -142,8 +143,8 @@ class NNQPlayer(Yahtzee):
         Inherits from Yahtzee, stores
         :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
         """
-        super(NNQPlayer, self).__init__()  # Originally passed Yahtzee to super - should be NNQPlayer
-
+        super(NNQPlayer, self).__init__(structure_of_layers)  # Originally passed Yahtzee to super - should be NNQPlayer
+        
         # Hyper parameters
         self.learning_rate = learning_rate
         # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output because of divergence
@@ -738,7 +739,7 @@ class NNQPlayer(Yahtzee):
         plt.savefig(self.results_path / "Raw_rewards_over_time.png")
         if self.show_figures:
             plt.show()
-        plt.close()date
+        plt.close()
 
         # plt.figure()
         df_rewards.plot(figsize=(60, 40))
