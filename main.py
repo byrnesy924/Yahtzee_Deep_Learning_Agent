@@ -105,12 +105,12 @@ if __name__ == '__main__':
     yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
 
     # Train Model
-    epochs = 2048
-    games_per_epoch = 64
+    epochs = 10
+    games_per_epoch = 8
     yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")
 
-    check_all_variables(yahtzee_player)
+    # check_all_variables(yahtzee_player)
 
     # number_tests = 10
 
