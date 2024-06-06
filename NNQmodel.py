@@ -705,7 +705,7 @@ class NNQPlayer(Yahtzee):
 
     def plot_reward_gain_over_time(self) -> None:
         if isinstance(self.recorded_rewards, pl.DataFrame):
-            df_rewards = self.recorded_rewards.to_pandas()
+            df_rewards = self.recorded_rewards.to_pandas(use_pyarrow_extension_array=False)
         else:
             df_rewards = self.recorded_rewards
         # plt.figure(figsize=(20, 100))
@@ -714,7 +714,7 @@ class NNQPlayer(Yahtzee):
         plt.savefig(self.results_path / "Raw_rewards_over_time.png")
         if self.show_figures:
             plt.show()
-        plt.close()
+        plt.close()date
 
         # plt.figure()
         df_rewards.plot(figsize=(60, 40))
