@@ -5,6 +5,7 @@ import pandas as pd
 import seaborn as sns
 
 from time import perf_counter
+from pympler import asizeof  # Accurate memory analysis
 from pathlib import Path
 from multiprocessing import pool
 
@@ -51,8 +52,8 @@ pspace_BO = {
 def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=False):
 
     # Included bounds transformer to dynamically change the bounds as the Bayesin agents search
-    bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[1, 1, 0.01, 0.00001, 100, 0.1, 0.1, 0.1,
-                                                                              0.1, 0.1, 0.1, 0.1])
+    bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[1, 1, 0.1, 0.01, 0.00001, 100, 0.1, 0.1,
+                                                                              0.1, 0.1, 0.1, 0.1, 0.1])
 
     optimizer = BO(
         f=test_model,
@@ -60,7 +61,7 @@ def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=Fa
         verbose=1,
         random_state=random.randint(0, 100),
         allow_duplicate_points=True,  # Just easier to mark this true as I'm piece-meal mapping the space
-        bounds_transformer=bounds_transformer
+        # bounds_transformer=bounds_transformer  # TODO get to work
     )
 
     logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
@@ -331,19 +332,19 @@ if __name__ == "__main__":
 
     start = perf_counter()
 
-    no_processes = os.cpu_count() - 6
-    args = [(pspace_BO, no_epochs, 8, 30, load_results) for i in range(no_processes)]
     # Single version:
-    # results = run_BO(BO_HParameters=pspace_BO,
-    #                  number_epochs=no_epochs,
-    #                  init_runs=1,
-    #                  total_runs=0,
-    #                  load_results=load_results)
+    results = run_BO(BO_HParameters=pspace_BO,
+                     number_epochs=no_epochs,
+                     init_runs=1,
+                     total_runs=0,
+                     load_results=load_results)
 
     # Multithreaded
-    with pool.Pool(no_processes) as pool:
-        results_list = [res for res in pool.starmap(run_BO, args)]
-    results = pd.concat(results_list).drop_duplicates()
+    # no_processes = os.cpu_count() - 6
+    # args = [(pspace_BO, no_epochs, 8, 45, load_results) for i in range(no_processes)]
+    # with pool.Pool(no_processes) as pool:
+    #     results_list = [res for res in pool.starmap(run_BO, args)]
+    # results = pd.concat(results_list).drop_duplicates()
 
     results.to_csv(results_path, index=False)
     BO_time = perf_counter()

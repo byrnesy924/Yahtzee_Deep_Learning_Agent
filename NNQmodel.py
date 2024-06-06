@@ -1,10 +1,16 @@
+""" Utils that contain Q Learning agent"""
 import os
-import sys
 import pandas as pd
+import polars as pl
 import tensorflow as tf
 import numpy as np
 import random
+
+import matplotlib as mpl
+mpl.rcParams['agg.path.chunksize'] = 10000  # exceeded cell block limit error on my PC machine - there is a github issue about this https://github.com/matplotlib/matplotlib/issues/5907
+
 import matplotlib.pyplot as plt
+
 import time
 # import sys
 
@@ -140,7 +146,7 @@ class NNQPlayer(Yahtzee):
 
         # Hyper parameters
         self.learning_rate = learning_rate
-        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output
+        # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output because of divergence
         # https://stackoverflow.com/questions/39714374/nan-results-in-tensorflow-neural-network?rq=4
         self.gamma = gamma
 
@@ -167,17 +173,18 @@ class NNQPlayer(Yahtzee):
 
         # Record the rewards gained to get a better insight into how it is optimising the reward space
         # Each time a reward is received it is appended onto here
-        # TODO switch to a polars dataframe to save space. For now this uses half memory by using np.float16
-        self.recorded_rewards = pd.DataFrame(columns=[
-            "reward_for_all_dice",
-            "punish_for_not_picking_dice",
-            "punish_amount_for_incorrect_score_choice",
-            "reward_factor_for_initial_dice_picked",
-            "reward_factor_for_picking_choice_correctly",
-            "reward_factor_total_score",
-            "reward_factor_chosen_score"
-        ], dtype=np.float16
-        )
+
+        # Polars implimentation
+        reward_cols = {
+            "reward_for_all_dice": pl.Float32,
+            "punish_for_not_picking_dice": pl.Float32,
+            "punish_amount_for_incorrect_score_choice": pl.Float32,
+            "reward_factor_for_initial_dice_picked": pl.Float32,
+            "reward_factor_for_picking_choice_correctly": pl.Float32,
+            "reward_factor_total_score": pl.Float32,
+            "reward_factor_chosen_score": pl.Float32
+        }
+        self.recorded_rewards = pl.DataFrame(schema=reward_cols)
 
         self.dqn_model = QLearningModel(num_states=self.state_size,
                                         num_actions=self.action_size,
@@ -332,6 +339,7 @@ class NNQPlayer(Yahtzee):
             dones = tf.convert_to_tensor(dones, dtype=tf.float32)
 
             # calculate the target q values by running the next states through the target DQN
+            # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
             target_q = self.dqn_target(tf.convert_to_tensor(np.vstack(next_states), dtype=tf.float32))
             if self.large_action_size:
                 # This is the updated method four output size of 18
@@ -358,8 +366,10 @@ class NNQPlayer(Yahtzee):
             target_value = (1 - dones) * self.gamma * target_value + rewards
             # Sudo code - if done, then reward is just reward (1-done). If not, then add on the target q* learning rate
 
+            # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
             main_q = self.dqn_model(tf.convert_to_tensor(np.vstack(states), dtype=tf.float32))
 
+            # TODO - validate this code
             main_value = tf.reduce_sum(actions * main_q, axis=1)
 
             # hand coded mean squared error between the two functions - could also use tf function
@@ -460,25 +470,18 @@ class NNQPlayer(Yahtzee):
         else:
             reward = self.reward_factor_chosen_score*(updated_score - current_score)
 
-        # Handle converting recorded rewards into a dataframe to conserve memory (dictionary was eating RAM)
-        if len(self.recorded_rewards) == 0:
-            rewards_index = 0
-        else:
-            rewards_index = len(self.recorded_rewards)
-
-        self.recorded_rewards.loc[rewards_index, "reward_factor_chosen_score"] = reward
+        # Polars method - each of the rewards record to a variable and concat a arow at the end
+        recorded_awards_initial_reward = reward
 
         # Score is returned by the Yahtzee Game, if it is None then the chosen score was previously picked in the game
         if score is None:
-            punish_score = -1*self.punish_amount_for_incorrect_score_choice
+            recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
             reward -= self.punish_amount_for_incorrect_score_choice
         else:
-            punish_score = -1*self.punish_amount_for_incorrect_score_choice
-        self.recorded_rewards.loc[rewards_index, "punish_amount_for_incorrect_score_choice"] = punish_score
+            recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
 
         reward += self.reward_factor_total_score*updated_score  # this multiplyer is a hyper parameter
-        self.recorded_rewards.loc[rewards_index,
-                                  "reward_factor_total_score"] = self.reward_factor_total_score*updated_score
+        recorded_rewards_reward_factor_total_score = self.reward_factor_total_score*updated_score
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
         # 1 August 2023 - removed this
         # Experimented with negative reward - findings, did not perform as well
@@ -499,12 +502,10 @@ class NNQPlayer(Yahtzee):
             if 0 < action_picked < 14:
                 # Double the reward for successfully choosing a score
                 # *(updated_score - current_score)
-                self.recorded_rewards.loc[rewards_index,
-                                          "reward_factor_for_picking_choice_correctly"
-                                          ] = self.reward_factor_for_picking_choice_correctly
+                recorded_reward_factor_for_picking_choice_correctly = self.reward_factor_for_picking_choice_correctly
                 reward += self.reward_factor_for_picking_choice_correctly  # *(updated_score - current_score)
             else:
-                self.recorded_rewards.loc[rewards_index, "reward_factor_for_picking_choice_correctly"] = 0
+                recorded_reward_factor_for_picking_choice_correctly = 0
 
             # Current Implementation - If it picked all its dice, reward it more. If it didn't, punish it
             if self.sub_turn == 1 and len(self.dice_saved) == 5:
@@ -527,13 +528,20 @@ class NNQPlayer(Yahtzee):
 
             # Note need to record 0 here in this branch
             # Record 0 if no reward
-            self.recorded_rewards.loc[rewards_index, "reward_factor_for_picking_choice_correctly"] = 0
+            recorded_reward_factor_for_picking_choice_correctly = 0
 
         # Record these reward factors
-        self.recorded_rewards.loc[rewards_index, "reward_factor_for_initial_dice_picked"] = reward_for_initial_dice
-        self.recorded_rewards.loc[rewards_index, "reward_for_all_dice"] = reward_for_all_dice
-        self.recorded_rewards.loc[rewards_index, "punish_for_not_picking_dice"] = punish_for_incorrect_choice
+        new_row = pl.DataFrame({
+            "reward_for_all_dice": reward_for_all_dice,
+            "punish_for_not_picking_dice": punish_for_incorrect_choice,
+            "punish_amount_for_incorrect_score_choice": recorded_rewards_punish_score,
+            "reward_factor_for_initial_dice_picked": reward_for_initial_dice,
+            "reward_factor_for_picking_choice_correctly": recorded_reward_factor_for_picking_choice_correctly,
+            "reward_factor_total_score": recorded_rewards_reward_factor_total_score,
+            "reward_factor_chosen_score": recorded_awards_initial_reward,
+        })
 
+        self.recorded_rewards = pl.concat([self.recorded_rewards, new_row], how="vertical_relaxed", rechunk=True)
         # print(f"The dice move was: {dice_move} and the score move was: {score_move}, and the reward was: {reward}")
         return reward
 
@@ -553,8 +561,15 @@ class NNQPlayer(Yahtzee):
         scorecards = []
 
         for epoch in range(number_of_epochs):
+            if epoch % 100 == 0:
+                # Quick and dirty way to monitor progress on another machine
+                print(f"Doing Epoch number {epoch}")
+            
+            # TODO - can hyperparameterise this to hone in on better inital exploration and tradeoff of exploration and exploitation in long run 
+            epsilon = max(0.985**epoch, 0.01)  # Epsilon greedy approach - epsilon % of time explore with random option, otherwise exploit knowledge. Decay epsilon
+            # Note that currently memory is 4800, which is 5 epochs; 
+  
             for game in range(games_per_epoch):
-                epsilon = 1 / (games_per_epoch * 0.1 + 1)
                 self.reset_game()
                 self.roll_dice()  # For some reason the dice aren't rolled at the start of the first game
 
@@ -607,9 +622,7 @@ class NNQPlayer(Yahtzee):
                     # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
                     # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
-
-                    print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
-
+                    # print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
 
         # Save the TF model and its results
         if save_model:
@@ -715,14 +728,17 @@ class NNQPlayer(Yahtzee):
             plt.close()
 
     def plot_reward_gain_over_time(self) -> None:
-        df_rewards = self.recorded_rewards
+        if isinstance(self.recorded_rewards, pl.DataFrame):
+            df_rewards = self.recorded_rewards.to_pandas(use_pyarrow_extension_array=False)
+        else:
+            df_rewards = self.recorded_rewards
         # plt.figure(figsize=(20, 100))
         df_rewards.plot(subplots=True, figsize=(20, 100))
         plt.title("Individual rewards over time")
         plt.savefig(self.results_path / "Raw_rewards_over_time.png")
         if self.show_figures:
             plt.show()
-        plt.close()
+        plt.close()date
 
         # plt.figure()
         df_rewards.plot(figsize=(60, 40))
