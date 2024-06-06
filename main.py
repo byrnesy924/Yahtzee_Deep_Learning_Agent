@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # Train Model
     epochs = 1_000
     games_per_epoch = 64
-    
+
 # TODO - think of a way tyo record tyhese results together
 
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
@@ -137,7 +137,6 @@ if __name__ == '__main__':
     two = time.perf_counter()
     # check_all_variables(yahtzee_player)
     print(f"Took {(two - one)/3600} hours to do 1,000 epochs")
-
 
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
     three = time.perf_counter()
