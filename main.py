@@ -126,25 +126,27 @@ if __name__ == '__main__':
     epochs = 1_000
     games_per_epoch = 64
     
+# TODO - think of a way tyo record tyhese results together
+
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
     one = time.perf_counter()
-    check_all_variables(yahtzee_player)
     print(f"Took {(one - start)/3600} hours to do 1,000 epochs")
+    # check_all_variables(yahtzee_player)
     
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
     two = time.perf_counter()
-    check_all_variables(yahtzee_player)
+    # check_all_variables(yahtzee_player)
     print(f"Took {(two - one)/3600} hours to do 1,000 epochs")
 
 
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
     three = time.perf_counter()
-    check_all_variables(yahtzee_player)
+    # check_all_variables(yahtzee_player)
     print(f"Took {(three - two)/3600} hours to do 1,000 epochs")
 
     yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
     four = time.perf_counter()
-    check_all_variables(yahtzee_player)
+    # check_all_variables(yahtzee_player)
     print(f"Took {(four - three)/3600} hours to do 1,000 epochs")
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")
