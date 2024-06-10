@@ -44,6 +44,7 @@ class Yahtzee:
         self.player_type: str = player_type  # Semantically encodes whether the player is a human, random or model
         # This in turn determines the paramterers fed to the method "turn"
 
+        # TODO - none of these variables are actrually used
         turn_number: int = 1  # Note starts from 1
         sub_turn: int = 1  # Note starts from 1
 
@@ -372,7 +373,7 @@ class Yahtzee:
     def print_roll(self):
         print(self.first_roll, self.second_roll, self.third_roll)
 
-    def print_scores(self, verbose=True):
+    def print_scores(self, verbose=True) -> dict:
         scorecard = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind",  # TODO Enum this
                      "four_of_a_kind", "full_house", "small_straight", "large_straight", "yahtzee", "chance"]
         if not verbose:
@@ -382,6 +383,8 @@ class Yahtzee:
 
         for item in scorecard:
             print(item, ": ", self.__getattribute__(item))
+        
+        return {item: self.__getattribute__(item) for item in scorecard}
 
     def reset_game(self):
         self.turn_number = 1
