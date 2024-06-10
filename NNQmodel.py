@@ -649,8 +649,7 @@ class NNQPlayer(Yahtzee):
 
         # Save the TF model and its results
         if save_model:
-            self.dqn_model.save_weights(
-                self.results_path / "QNN_Yahtzee_weights.ckpt")
+            self.save_model()
 
         # Plot (and save) the results of training
         scores = pl.DataFrame([final_scores, losses], schema={"Scores": pl.Float32, "Loss": pl.Float32})
