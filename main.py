@@ -93,7 +93,7 @@ if __name__ == '__main__':
     random_player = Yahtzee(player_type="random")
     random_results = [random_player_game(random_player=random_player) for i in range(100)]
     df = pd.DataFrame(random_results)
-    df.to_csv("1000 Random games.csv")
+    # df.to_csv("1000 Random games.csv")
     print(f"RANDOM: Took {time.perf_counter() - start}s to play")
     print(df.describe())
 
@@ -114,57 +114,39 @@ if __name__ == '__main__':
         "batch_size": 100,
         "buffer_size": 100,
         "length_of_memory": 4800,
-        "name": "Testing_HP_bug_fixed",
     }
 
     yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
     start = time.perf_counter()
 
-    # TODO build ability to load weights to continue training
-
     # Train Model
     epochs = 1_000
     games_per_epoch = 64
-    
-# TODO - think of a way tyo record tyhese results together
-
-    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
-    one = time.perf_counter()
-    print(f"Took {(one - start)/3600} hours to do 1,000 epochs")
-    # check_all_variables(yahtzee_player)
-    
-    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
-    two = time.perf_counter()
-    # check_all_variables(yahtzee_player)
-    print(f"Took {(two - one)/3600} hours to do 1,000 epochs")
-
-
-    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
-    three = time.perf_counter()
-    # check_all_variables(yahtzee_player)
-    print(f"Took {(three - two)/3600} hours to do 1,000 epochs")
-
-    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
-    four = time.perf_counter()
-    # check_all_variables(yahtzee_player)
-    print(f"Took {(four - three)/3600} hours to do 1,000 epochs")
+       
 
     print(f"Took {(time.perf_counter() - start)/3600} hours to run {epochs*games_per_epoch} games in {epochs} epochs")
 
-    check_all_variables(yahtzee_player)
+    # check_all_variables(yahtzee_player)
 
-    # number_tests = 10
+    # Pseudo code
+    for i in range(2):
+        start = time.perf_counter()
 
-    # time_length = []
-    # for i in range(number_tests):
-    #     start = time.perf_counter()
-    #     yahtzee_player = NNQPlayer(show_figures=False, **model_hyperparameters)
-    #     yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=False, verbose=False)
-    #     time_length.append((time.perf_counter() - start)/60)
-    #     print(f"Took {time_length[-1]} minutes")
+        # Create name of NNQ player with N
+        model_name = f"Default arch. staged training #{i}"
 
-    # with open("time_results.txt", "w") as f:
-    #     # architecture = model_hyperparameters["model_architecture"]
-    #     architecture = [16, 16, 16]
-    #     f.write(f"Did {number_tests} for {epochs} epochs with {games_per_epoch} and architecture {architecture}")
-    #     f.write(f"the average time per run was {sum(time_length)/len(time_length)}")
+        # Create the NNQ model object
+        yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
+        
+        # Load weights from previous step of training
+        if i > 0:
+            yahtzee_player.load_model(load_as_training_model=True)
+
+        # Train model
+        yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+
+        print(f"Training step number {i} took {(time.perf_counter() - start)/3600} hrs to run {epochs} epochs with {games_per_epoch} games per epoch")
+    
+    # save final yahtzee model as current model
+    yahtzee_player.save_model(save_as_current_model=True)
+
