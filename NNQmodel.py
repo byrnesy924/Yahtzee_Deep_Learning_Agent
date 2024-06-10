@@ -5,6 +5,7 @@ import polars as pl
 import tensorflow as tf
 import numpy as np
 import random
+import array
 
 import matplotlib as mpl
 mpl.rcParams['agg.path.chunksize'] = 10000  # exceeded cell block limit error on my PC machine - there is a github issue about this https://github.com/matplotlib/matplotlib/issues/5907
@@ -158,7 +159,7 @@ class NNQPlayer(Yahtzee):
         # Record the rewards gained to get a better insight into how it is optimising the reward space
         # Each time a reward is received it is appended onto here
 
-        # Polars implimentation
+        # Polars implimentation of tracking rewards
         reward_cols = {
             "reward_for_all_dice": pl.Float32,
             "punish_for_not_picking_dice": pl.Float32,
@@ -185,20 +186,62 @@ class NNQPlayer(Yahtzee):
         )
 
         # Locations to save memory and results
-        self.memory_path = Path("Memory/" + datetime.today().strftime('%Y-%m-%d') + "_" + name)
-        self.results_path = Path("Results/" + datetime.today().strftime('%Y-%m-%d') + "_" + name)
+        # Note - creates when the object is instantiated
+        self.memory_path = Path("Memory/" + datetime.today().strftime('%Y-%m-%d_%H:%M') + "_" + name)
+        self.results_path = Path("Results/" + datetime.today().strftime('%Y-%m-%d_%H:%M') + "_" + name)
         self.show_figures = show_figures
 
-        if not os.path.isdir(self.memory_path):
-            os.makedirs(self.memory_path)
-        if not os.path.isdir(self.results_path):
-            os.makedirs(self.results_path)
+        self.memory_path.mkdir(parents=True, exist_ok=True)
+        self.results_path.mkdir(parents=True, exist_ok=True)
+        # Keep code incase above doesnt work
+        # if not os.path.isdir(self.memory_path):
+        #     os.makedirs(self.memory_path)
+        # if not os.path.isdir(self.results_path):
+        #     os.makedirs(self.results_path)
 
         # Overall score of the model - used for hyperparameter tuning
         self.average_score = None  # float - update after running
         self.average_loss = None  # float - update after running
 
-        super().__init__()  # TODO this might be not necessary
+
+    def save_model(self, save_as_training_model=True, save_as_current_model=False) -> None:  # TODO returning none vs self
+        """Save the model weights"""        
+        # The current most up to date model, for permanent storing
+        if save_as_current_model:
+            current_model_path = Path("Current_Model")
+            current_model_path.mkdir(parents=True, exist_ok=True)
+            self.dqn_model.save_weights(
+                current_model_path / "QNN_Yahtzee_weights.ckpt")
+
+        if save_as_training_model:
+            training_model_path = Path("Training_Model")
+            training_model_path.mkdir(parents=True, exist_ok=True)
+            self.dqn_model.save_weights(
+                training_model_path / "QNN_Yahtzee_weights.ckpt")
+
+        self.dqn_model.save_weights(
+            self.results_path / "QNN_Yahtzee_weights.ckpt")
+        
+        return None
+        
+    def load_model(self, load_as_training_model=True, load_most_current_model=False) -> None:
+        """Load the model weights to both models. Current = most recent best model; training is for batch training purposes"""
+        current_model_path = Path("Current_Model")
+        training_model_path = Path("Training_Model")
+
+        if load_as_training_model:
+            self.dqn_model.load_weights(training_model_path / "QNN_Yahtzee_weights.ckpt")
+            self.dqn_target.load_weights(training_model_path / "QNN_Yahtzee_weights.ckpt")
+
+        elif load_most_current_model:
+            self.dqn_model.load_weights(current_model_path / "QNN_Yahtzee_weights.ckpt")
+            self.dqn_target.load_weights(current_model_path / "QNN_Yahtzee_weights.ckpt")
+
+        else:
+            self.dqn_model.load_weights(self.results_path / "QNN_Yahtzee_weights.ckpt")
+            self.dqn_target.load_weights(self.results_path / "QNN_Yahtzee_weights.ckpt")
+
+        return None
 
     def game_state_to_nn_input(self) -> np.ndarray:
         """
@@ -532,9 +575,9 @@ class NNQPlayer(Yahtzee):
         :return:
         """
         # Define epochs
-        losses = []
-        final_scores = []
-        scorecards = []
+        losses = array.array("f")
+        final_scores = array.array("f")
+        # Scorecards now polars database - reduce memory usage (but still will increase from raw string in list)
 
         for epoch in range(number_of_epochs):
             if epoch % 100 == 0:
@@ -583,22 +626,26 @@ class NNQPlayer(Yahtzee):
                         # Using the target model technique reduces the effect of correlation between
                         # Sequential experiences, in other words, improving stability
                         self.update_target()
+                
                 final_scores.append(self.calculate_score())
-                scorecards.append(self.print_scores(verbose=False))
+
+                if "scorecards" not in locals():
+                    scorecards = pl.from_dict(self.print_scores(verbose=False))    
+                else:
+                    pl.concat([scorecards, pl.from_dict(self.print_scores(verbose=False))])
+                
                 self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
                 losses.append(loss)
+                
                 if verbose:
                     print(f"Finished Game number {game}. Loss is currently {loss}. Score was {self.calculate_score()}")
 
-            # Log variables
+            # Log variables - save progress in CSV mopstly for intial dev purposes
             if epoch % 32 == 2:  # updated to 32 to save disk space of memory
                 # print(f"Epoch {epoch} finished")  # Convenient to check on training progress
                 if save_results:
                     # Form of logging - save to a csv
-                    # start_time = time.perf_counter()  # Removed timing - know it takes ~1sec, this reduces print calls
                     pd.DataFrame(self.memory).iloc[:, 0:5].to_csv(self.memory_path / f"Epoch {epoch} memory.csv")
-                    # print(f"Took {time.perf_counter() - start_time} seconds to save the memory for epoch {epoch}")
-                    # print(f"\n The average score is {self.average_score} and the average loss is {self.average_loss}")
 
         # Save the TF model and its results
         if save_model:
@@ -606,31 +653,44 @@ class NNQPlayer(Yahtzee):
                 self.results_path / "QNN_Yahtzee_weights.ckpt")
 
         # Plot (and save) the results of training
-        scores = pd.DataFrame([final_scores, scorecards, losses]) \
-            .transpose() \
-            .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
+        scores = pl.DataFrame([final_scores, losses], schema={"Scores": pl.Float32, "Loss": pl.Float32})
 
         self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
         # self.average_loss = sum(losses) / len(losses)
+        
+        # Rolling average and standard deviation
+        # It is possible (and preferable) to pass a list of these cols to .with_columns() but Pylance was freaking out and that bugged me...
+        scores.with_columns(
+            rolling_mean=pl.col("index").rolling_mean(window_size=512)
+        )
+        scores.with_columns(
+            rolling_std=pl.col("index").rolling_std(window_size=512)
+        )
+
+        # Rename cols for comapbility with meethod this is passed to below
+        scores.rename({"rolling_mean": "Rolling average", "rolling_std":"Rolling standard deviation"})  # TODO fix method so that it takes better col names
+
         if save_results:
             scores.to_csv(self.results_path / "Final scores.csv")
-        scores["Rolling average"] = scores.iloc[:, 0].rolling(512).mean()
+
+
         scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(512).std()
 
-        # More plotting functions for analysis
-        self.plot_games_over_time(scores=scores, losses=losses)  # Coupled with code above
+        # More plotting functions for further analysis
+        self.plot_games_over_time(scores=scores.to_pandas(), losses=scores.select("Loss").to_pandas())  # Coupled with code above
         self.plot_scores_over_time()
         self.plot_reward_gain_over_time()
 
         return
 
-    def plot_games_over_time(self, scores, losses):
+    def plot_games_over_time(self, scores: pd.DataFrame, losses: pd.DataFrame) -> None:
         """
         Method that plots game scores over time + average +- 1 standard deviation.
         :param scores: (pd.DataFrame) Coupled with scores from run method - calculated there
         :param losses: (pd.DataFrame) Coupled with losses from run method - calculated there
         :return: None
         """
+        # TODO - think about if a polars version is required
         plt.figure(figsize=(20, 20))
         plt.plot(scores["Scores"])
         plt.plot(scores["Rolling average"])
@@ -674,6 +734,7 @@ class NNQPlayer(Yahtzee):
         return
 
     def plot_scores_over_time(self):
+        """Plots the special scores and normal scores over time, so that the rough strategy/outcopmes of the model can be seen in more detail"""
         plot_special_scores = self.score_tracker_special.cumsum()
         plot_special_scores.reset_index(inplace=True, drop=True)
         plot_special_scores.fillna(0, inplace=True)
@@ -704,6 +765,7 @@ class NNQPlayer(Yahtzee):
             plt.close()
 
     def plot_reward_gain_over_time(self) -> None:
+        """ Tracks the rewards given over time, so that the rewards structure and space (and how the model moves in this space) can be seen in more detail"""
         if isinstance(self.recorded_rewards, pl.DataFrame):
             df_rewards = self.recorded_rewards.to_pandas(use_pyarrow_extension_array=False)
         else:
@@ -714,7 +776,7 @@ class NNQPlayer(Yahtzee):
         plt.savefig(self.results_path / "Raw_rewards_over_time.png")
         if self.show_figures:
             plt.show()
-        plt.close()date
+        plt.close()
 
         # plt.figure()
         df_rewards.plot(figsize=(60, 40))
