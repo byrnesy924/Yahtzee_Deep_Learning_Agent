@@ -129,7 +129,7 @@ if __name__ == '__main__':
     for i in range(2):
         # Define name
         start = time.perf_counter()
-        model_name = f"Default arch. training step {i+1}"
+        model_name = f"Default_architecture_training_step_{i+1}"
 
         # Create and train model, with loading wweights
         yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
