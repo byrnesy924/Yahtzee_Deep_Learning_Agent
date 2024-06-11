@@ -377,14 +377,14 @@ class Yahtzee:
         scorecard = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind",  # TODO Enum this
                      "four_of_a_kind", "full_house", "small_straight", "large_straight", "yahtzee", "chance"]
         if not verbose:
-            return (self.__getattribute__(item) for item in scorecard)
+            return {item: self.__getattribute__(item) for item in scorecard}
         print("Nice game! Your overall score was: ", self.calculate_score())
         print("\nScorecard:\n")
 
         for item in scorecard:
             print(item, ": ", self.__getattribute__(item))
         
-        return {item: self.__getattribute__(item) for item in scorecard}
+        return
 
     def reset_game(self):
         self.turn_number = 1

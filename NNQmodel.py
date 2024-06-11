@@ -187,8 +187,8 @@ class NNQPlayer(Yahtzee):
 
         # Locations to save memory and results
         # Note - creates when the object is instantiated
-        self.memory_path = Path("Memory/" + datetime.today().strftime('%Y-%m-%d_%H:%M') + "_" + name)
-        self.results_path = Path("Results/" + datetime.today().strftime('%Y-%m-%d_%H:%M') + "_" + name)
+        self.memory_path = Path("Memory/" + datetime.today().strftime('%Y-%m-%d_%H-%M') + "_" + name)
+        self.results_path = Path("Results/" + datetime.today().strftime('%Y-%m-%d_%H-%M') + "_" + name)
         self.show_figures = show_figures
 
         self.memory_path.mkdir(parents=True, exist_ok=True)
@@ -635,6 +635,8 @@ class NNQPlayer(Yahtzee):
                     pl.concat([scorecards, pl.from_dict(self.print_scores(verbose=False))])
                 
                 self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
+                if loss is None:
+                    loss = 0
                 losses.append(loss)
                 
                 if verbose:
@@ -652,7 +654,7 @@ class NNQPlayer(Yahtzee):
             self.save_model()
 
         # Plot (and save) the results of training
-        scores = pl.DataFrame([final_scores, losses], schema={"Scores": pl.Float32, "Loss": pl.Float32})
+        scores = pl.DataFrame([final_scores.tolist(), losses.tolist()], schema={"Scores": pl.Float32, "Loss": pl.Float32})
 
         self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
         # self.average_loss = sum(losses) / len(losses)
