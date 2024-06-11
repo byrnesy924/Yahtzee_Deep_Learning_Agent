@@ -119,7 +119,7 @@ if __name__ == '__main__':
     start = time.perf_counter()
 
     # Train Model
-    epochs = 1_000
+    epochs = 10
     games_per_epoch = 64
    
 
@@ -139,6 +139,6 @@ if __name__ == '__main__':
 
         print(f"Took {(time.perf_counter() - start)/3600} hrs to run {epochs} with {games_per_epoch} # games in training step {i+1}")
 
-    yahtzee_player.save_model(save_as_current_model=True)
+    # yahtzee_player.save_model(save_as_current_model=True)
     # check_all_variables(yahtzee_player)
-
+  
