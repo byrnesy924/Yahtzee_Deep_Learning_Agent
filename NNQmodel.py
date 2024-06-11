@@ -661,21 +661,18 @@ class NNQPlayer(Yahtzee):
         
         # Rolling average and standard deviation
         # It is possible (and preferable) to pass a list of these cols to .with_columns() but Pylance was freaking out and that bugged me...
-        scores.with_columns(
+        scores = scores.with_columns(
             rolling_mean=pl.col("Scores").rolling_mean(window_size=512)
         )
-        scores.with_columns(
+        scores = scores.with_columns(
             rolling_std=pl.col("Scores").rolling_std(window_size=512)
         )
 
         # Rename cols for comapbility with meethod this is passed to below
-        scores.rename({"rolling_mean": "Rolling average", "rolling_std":"Rolling standard deviation"})  # TODO fix method so that it takes better col names
+        scores = scores.rename({"rolling_mean": "Rolling average", "rolling_std":"Rolling standard deviation"})  # TODO fix method so that it takes better col names
 
         if save_results:
-            scores.to_csv(self.results_path / "Final scores.csv")
-
-
-        scores["Rolling standard deviation"] = scores.iloc[:, 0].rolling(512).std()
+            scores.write_csv(self.results_path / "Final scores.csv")
 
         # More plotting functions for further analysis
         self.plot_games_over_time(scores=scores.to_pandas(), losses=scores.select("Loss").to_pandas())  # Coupled with code above
