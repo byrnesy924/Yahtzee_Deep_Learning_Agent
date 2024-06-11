@@ -662,10 +662,10 @@ class NNQPlayer(Yahtzee):
         # Rolling average and standard deviation
         # It is possible (and preferable) to pass a list of these cols to .with_columns() but Pylance was freaking out and that bugged me...
         scores.with_columns(
-            rolling_mean=pl.col("index").rolling_mean(window_size=512)
+            rolling_mean=pl.col("Scores").rolling_mean(window_size=512)
         )
         scores.with_columns(
-            rolling_std=pl.col("index").rolling_std(window_size=512)
+            rolling_std=pl.col("Scores").rolling_std(window_size=512)
         )
 
         # Rename cols for comapbility with meethod this is passed to below
