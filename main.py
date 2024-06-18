@@ -111,9 +111,9 @@ if __name__ == '__main__':
         "reward_factor_chosen_score": 3.5,
         "punish_factor_not_picking_dice": -0.3,
         "punish_amount_for_incorrect_score_choice": -3,
-        "batch_size": 100,
+        "batch_size": 200,
         "buffer_size": 100,
-        "length_of_memory": 4800,
+        "length_of_memory": 6400,
     }
 
     start = time.perf_counter()
@@ -121,9 +121,10 @@ if __name__ == '__main__':
     # Train Model
     epochs = 800
     games_per_epoch = 64
+    training_runs = 10
    
     # check_all_variables(yahtzee_player)
-    for i in range(8):
+    for i in range(training_runs):
         # Define name
         start = time.perf_counter()
         model_name = f"Default_architecture_training_step_{i+1}"
@@ -131,11 +132,22 @@ if __name__ == '__main__':
         # Create and train model, with loading wweights
         yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
         if i > 0:
+            # TODO remove this so that it loads the Current Model
             yahtzee_player.load_model(load_as_training_model=True)
+        
         yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+
+        # TODO - log this information        
+        print(asizeof.asized(yahtzee_player.recorded_rewards, detail=1).format())
+        print(asizeof.asized(yahtzee_player.score_tracker_special, detail=1).format())
+        print(asizeof.asized(yahtzee_player.score_tracker_singles, detail=1).format())
 
         print(f"Took {(time.perf_counter() - start)/3600} hrs to run {epochs} with {games_per_epoch} # games in training step {i+1}")
 
-    yahtzee_player.save_model(save_as_current_model=True)
+        if i != training_runs:
+            # Delete the object to reduce memory usage - # TODO research how python will allocate memory when re-assigning variable to a new instance of the object
+            yahtzee_player.save_model(save_as_current_model=True)
+            del yahtzee_player
+        
     # check_all_variables(yahtzee_player)
   
