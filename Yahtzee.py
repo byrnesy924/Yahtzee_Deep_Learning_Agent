@@ -40,7 +40,7 @@ class Yahtzee:
     dice_saved: list = []
     chosen_scores = []
 
-    def __init__(self, player_type: str = random):
+    def __init__(self, player_type: str = "random"):
         self.player_type: str = player_type  # Semantically encodes whether the player is a human, random or model
         # This in turn determines the paramterers fed to the method "turn"
 
