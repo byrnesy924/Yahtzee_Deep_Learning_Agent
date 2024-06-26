@@ -86,6 +86,21 @@ The optimisation method produced a number of results, but also had some limitati
 - Another concern of mine was potential non-linearity of learning; performance in the first 1000 games does not necessarily translate to optimal policy choice
 See below for a visualisation of the hyper-parameter tuning
 
+*Hyperarameter tuning*
+- When experimenting with the architecture of the model, had to consider trade off of the search approach
+    - It is limited to 32 epochs * 64 games, and the larger the model, the longer it takes to train
+    - Using average might not be the correct target - potentially the average of the last epoch or last 1000 games
+    - TODO
+Another point that occured to me was reproducability and the effect of noise
+- The results were extremely noisy
+- I was not controlling for initialisation, leading to increase noise
+- In order to reduce noise, increase comparitibility of the models, I controlled for this parameter
+# TODO - include a script that examines the effect of randomisation of weights on performance
+See https://stackoverflow.com/questions/43489697/tensorflow-weight-initialization
+https://www.tensorflow.org/api_docs/python/tf/keras/initializers/VarianceScaling
+https://stackoverflow.com/questions/65704588/neural-network-hyperparameter-tuning-is-setting-random-seed-a-good-idea
+
+
 TODO - Visualisation
 TODO Grokking and long training
 - Experiments with grokking - training for longer with stronger hardware

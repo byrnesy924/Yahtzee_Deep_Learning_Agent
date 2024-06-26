@@ -31,15 +31,23 @@ class QLearningModel(tf.keras.Model):
         :param num_states: the number of inputs, i.e. the states of the game
         :param structure_of_layers: list or None - provide this to parameterise the architecture of the network.
         """
-        
         super(QLearningModel, self).__init__()
         # Using structure of layers -> parameterize the architecture.
         # If argument is none, assume three layers, use num_nodes_per_layer
         self.structure_of_layers = structure_of_layers
+
+        # 26 June - intialiser to reduce noise in HParameter tuning
+        initializer = tf.keras.initializers.VarianceScaling(scale=1,
+                                                            mode="fan_in",
+                                                            distribution="truncated_normal",
+                                                            seed=1
+        )
+
+
         if structure_of_layers is None:
-            self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-            self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-            self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+            self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
+            self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
+            self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
             self.output_layer = tf.keras.layers.Dense(num_actions)
         else:
             if not isinstance(structure_of_layers, list):
@@ -222,6 +230,7 @@ class NNQPlayer(Yahtzee):
         # Overall score of the model - used for hyperparameter tuning
         self.average_score = None  # float - update after running
         self.average_loss = None  # float - update after running
+        self.last_250_scores_average = None
 
         super().__init__()  # TODO this might be not necessary
 
@@ -636,6 +645,7 @@ class NNQPlayer(Yahtzee):
             .rename({0: "Scores", 1: "Card", 2: "Loss"}, axis=1)
 
         self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
+        self.last_250_scores_average = sum(final_scores[-250:]) / 250
         # self.average_loss = sum(losses) / len(losses)
         if save_results:
             scores.to_csv(self.results_path / "Final scores.csv")
