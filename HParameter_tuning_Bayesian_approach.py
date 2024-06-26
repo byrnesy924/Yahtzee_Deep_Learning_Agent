@@ -66,7 +66,7 @@ def test_model(learning_rate=0.0008,
         name=name
     )
 
-    model.run(16, 64, save_results=False, save_model=False, verbose=False)
+    model.run(32, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                structure_of_layers,
@@ -86,26 +86,27 @@ def test_model(learning_rate=0.0008,
     # But in the Bayesian approach, we can only return a target variable, not a list
     if random_results:
         return results
-    return model.average_score
+    return model.last_250_scores_average
 
 
 # Define paremter space; 6 June - reduced curse of dimensionality by focusing on architecture
-
+# To remove these just comment them out. Note that not passing a tuple throws errors!
+# Also throws errors when the distance between them is 0
 pspace_BO = {
-    # "batch_size": 100,
-    # "buffer_size": 100,
-    # "epochs": 16,
-    # "gamma": 0.92,
-    "learning_rate": (0.000_01, 0.001),
-    # "memory": 4800,
-    "number_layers": (3, 6),
-    # "punish_amount_for_incorrect_score_choice": -3,
-    # "punish_for_not_picking_dice": -0.3,
-    # "reward_for_all_dice": 5,
-    # "reward_factor_for_initial_dice_picked": 0.45,
-    # "reward_factor_for_picking_choice_correctly": 5.2,
+    # "batch_size": (100, 100),
+    # "buffer_size": (100, 100),
+    # "epochs": (16, 16),
+    # "gamma": (0.92, 0.92),
+    "learning_rate": (0.000_01, 0.000_1),
+    # "memory": (4800, 4800),
+    "number_layers": (3, 7),
+    # "punish_amount_for_incorrect_score_choice": (-3, -3),
+    # "punish_for_not_picking_dice": (-0.3, -0.3),
+    # "reward_for_all_dice": (5, 5),
+    # "reward_factor_for_initial_dice_picked": (0.45, 0.45),
+    # "reward_factor_for_picking_choice_correctly": (5.2, 5.2),
     "reward_factor_total_score": (0, 5),
-    # "reward_factor_chosen_score": 3.5,
+    # "reward_factor_chosen_score": (3.5, 3.5),
     "structure_of_layers": (16, 64)
 }
 
@@ -114,15 +115,14 @@ def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=Fa
 
     # Included bounds transformer to dynamically change the bounds as the Bayesin agents search
     bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[0.000_01, 1, 1, 4])
-    # minimum_window=[1, 1, 1, 1, 0.000_01, 100, 1, 0.1, 0.1,0.1, 0.1, 0.1, 0.1, 0.1, 4]
 
     optimizer = BO(
         f=test_model,
         pbounds=BO_HParameters,
         verbose=1,
-        random_state=random.randint(0, 100),
+        random_state=random.randint(0, 10),  # TODO increase reproducability by limiting this
         allow_duplicate_points=True,  # Just easier to mark this true as I'm piece-meal mapping the space
-        bounds_transformer=bounds_transformer  # TODO get to work
+        bounds_transformer=bounds_transformer
     )
 
     # logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
@@ -137,7 +137,7 @@ def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=Fa
     #     print("Loaded previous points:")
     #     print('\n is max:\n', optimizer.max)
 
-    logger = JSONLogger(path=str(logs_path), reset=False)
+    logger = JSONLogger(path=str(logs_path), reset=True)
     optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
     print("\nOptimising!\n")
@@ -314,7 +314,7 @@ def plot_correlation_heatmap(results: pd.DataFrame, no_epochs: int):
     """
     fig, ax = plt.subplots(figsize=(20, 20))
     heatmap = sns.heatmap(results.corr(), annot=True, ax=ax)
-    # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
+    heatmap.figure.suptitle('Heat map of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_heatmap.png")
     plt.savefig(fig_path)
     plt.show()
@@ -329,11 +329,9 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
     :type results: pd.DataFrame
     """
     vars = results.drop(columns="target").columns.to_list()
-
     pair_plot = sns.pairplot(results, vars=vars, hue="target")
-
-    # TODO look into this deprecation
-    pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
+    pair_plot.set(ylim=60)
+    pair_plot.figure.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_testing_pairplot_results.png")
     plt.savefig(fig_path)
     plt.show()
@@ -344,13 +342,15 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
 def plot_each_variable_against_target(results: pd.DataFrame, no_epochs: int):
     vars_to_plot = results.drop(columns="target").columns.to_numpy()
 
+    # TODO try refactor where the FacetGrid is split amongst the vars rather than one per thing 
     for var in vars_to_plot:
         sub_df = results[["target", var]].copy().sort_values(var)
-        sns.lmplot(data=sub_df, x=var, y="target", order=20)
+        lmplot = sns.lmplot(data=sub_df, x=var, y="target", order=20)  # SNS API: Returns a FacetGrid object
+        lmplot.set(ylim=(0, 60), yticks=[10, 20, 30, 40, 50])
+        lmplot.set_titles(var, "Target (avg score last 100 games)")
 
         fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{var}_against_results.png")
-        plt.savefig(fig_path)
-
+        lmplot(fig_path)
         plt.show()
         plt.close()
     return
@@ -369,7 +369,7 @@ def transfer_rows_to_backup(file_path: Path, backup_file_path: Path):
 
 
 if __name__ == "__main__":
-    no_epochs = 16
+    no_epochs = 32
     hparameter_testing = Path("Results/Hyperparameter_testing")
     epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
     results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
@@ -394,8 +394,8 @@ if __name__ == "__main__":
     # Single version:
     results = run_BO(BO_HParameters=pspace_BO,
                      number_epochs=no_epochs,
-                     init_runs=1,
-                     total_runs=0,
+                     init_runs=100,
+                     total_runs=200,
                      load_results=True)
 
     # Multithreaded
@@ -407,6 +407,8 @@ if __name__ == "__main__":
 
     results.to_csv(results_path, index=False)
     BO_time = perf_counter()
+
+    print(results.sort_values("target", ascending=False).head(20))
 
     # print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*4*20} times")
 
@@ -427,5 +429,3 @@ if __name__ == "__main__":
 
     plot_correlation_heatmap(results=results, no_epochs=no_epochs)
     plot_hyperparameter_space(results=results, no_epochs=no_epochs)
-
-    print(results.sort_values("target", ascending=False).head(20))
