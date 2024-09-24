@@ -396,3 +396,10 @@ class Yahtzee:
         for item in score_card:
             self.__setattr__(item, 0)
         self.get_bonus = False
+
+
+if __name__ == "__main__":
+    game = Yahtzee(player_type="Human")
+
+    for i in range(13):
+        game.turn(player_input=True)
