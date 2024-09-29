@@ -2,6 +2,10 @@ import random
 
 import numpy as np
 
+# The testing script is full of boiler plate because I did not follow SOLID design principles when building the Yahtzee game
+# This has a huge impact on unit testing as the Yahtzee class is a tangled mess - a monolithic thing.
+# It also had an effect on development as it was more difficult to find and iron out bugs. Lesson learned!
+
 
 class Yahtzee:
     """"

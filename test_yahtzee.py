@@ -2,6 +2,8 @@
 import pytest
 from Yahtzee import Yahtzee
 
+# This script is full of boiler plate because I did not follow SOLID design principles when building the Yahtzee game
+# This has a huge impact on unit testing as the Yahtzee class is a tangled mess - a monolithic thing.
 
 if __name__ == "__main__":
     test_game = Yahtzee(player_type="Model")
@@ -9,7 +11,7 @@ if __name__ == "__main__":
     # pick_score - highly coupled and complex, eek
     def test_pick_score_singles(yahtzee_game: Yahtzee):
         """Test the singles pick score. Assume represents all ones - sixes and check code is mirror"""        
-        
+
         # ones - sixes
         yahtzee_game.reset_game()
         yahtzee_game.sub_turn = 3
