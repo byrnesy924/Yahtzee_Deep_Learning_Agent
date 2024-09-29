@@ -34,20 +34,8 @@ import pstats
 from pympler import asizeof  # Accurate memory analysis
 
 
-from Yahtzee import Yahtzee
+from Yahtzee import Yahtzee, random_player_game
 from NNQmodel import NNQPlayer
-
-
-def random_player_game(random_player: Yahtzee):
-    random_player.roll_dice()
-    for i in range(12):
-        for y in range(3):
-            if random_player.sub_turn == 1:
-                random_player.roll_dice()
-            random_player.turn(player_input=False, random_choice=True)
-    score = random_player.calculate_score()
-    random_player.reset_game()
-    return score
 
 
 def profile_code(model):

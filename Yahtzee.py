@@ -404,8 +404,23 @@ class Yahtzee:
         self.get_bonus = False
 
 
+def random_player_game(random_player: Yahtzee):
+    random_player.roll_dice()
+    for i in range(12):
+        for y in range(3):
+            if random_player.sub_turn == 1:
+                random_player.roll_dice()
+            random_player.turn(player_input=False, random_choice=True)
+    score = random_player.calculate_score()
+    random_player.reset_game()
+    return score
+
+
 if __name__ == "__main__":
     game = Yahtzee(player_type="Human")
 
-    for i in range(13):
-        game.turn(player_input=True)
+    # for i in range(13):
+    #     game.turn(player_input=True)
+
+    random_player = Yahtzee(player_type="random")
+    random_results = [random_player_game(random_player=random_player) for i in range(2)]
