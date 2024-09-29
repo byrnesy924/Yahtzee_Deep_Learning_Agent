@@ -162,13 +162,13 @@ class Yahtzee:
         if len(self.dice_saved) == 5 \
                 and len(unique_dice_chosen) <= 2 \
                 and (self.dice_saved.count(unique_dice_chosen[0]) == 3
-                     or self.dice_saved.count(unique_dice_chosen[0]) == 3):
+                     or self.dice_saved.count(unique_dice_chosen[1]) == 3):
             return 25
         return 0
 
     def pick_small_straight(self):
         """Pick a 4 in a row straight. abuse that there is only 3 possibilities for this, and that sets are sorted"""
-        unique_dice_chosen = list(set(self.dice_saved))
+        unique_dice_chosen = sorted(list(set(self.dice_saved)))
         if unique_dice_chosen[0:4] == [1, 2, 3, 4] or unique_dice_chosen[0:4] == [2, 3, 4, 5] \
                 or unique_dice_chosen[0:4] == [3, 4, 5, 6]:
             return 30
