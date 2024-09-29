@@ -40,9 +40,8 @@ class QLearningModel(tf.keras.Model):
         initializer = tf.keras.initializers.VarianceScaling(scale=1,
                                                             mode="fan_in",
                                                             distribution="truncated_normal",
-                                                            seed=1
-        )
-
+                                                            seed=10
+                                                            )
 
         if structure_of_layers is None:
             self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)

@@ -388,9 +388,11 @@ class Yahtzee:
         self.sub_turn = 1
         self.dice_saved = []
         self.chosen_scores = []  # 9 February added this tracker of chosen scores
+
+        self.third_roll, self.second_roll, self.first_roll = self.empty_roll.copy(), self.empty_roll.copy(), self.empty_roll.copy()
         self.roll_dice()
-        self.third_roll, self.second_roll, self.first_roll = self.empty_roll, self.empty_roll, self.empty_roll
-        score_card = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind","four_of_a_kind",
+
+        score_card = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind", "four_of_a_kind",
                       "full_house", "small_straight", "large_straight", "yahtzee", "chance", "yahtze_bonus",
                       "singles_total", "total_score"]
         for item in score_card:
