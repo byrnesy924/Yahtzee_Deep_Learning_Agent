@@ -66,7 +66,7 @@ def test_model(learning_rate=0.0008,
         name=name
     )
 
-    model.run(32, 64, save_results=False, save_model=False, verbose=False)
+    model.run(48, 64, save_results=False, save_model=False, verbose=False)
     results = [learning_rate,
                gamma,
                structure_of_layers,
@@ -350,7 +350,7 @@ def plot_each_variable_against_target(results: pd.DataFrame, no_epochs: int):
         lmplot.set_titles(var, "Target (avg score last 100 games)")
 
         fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{var}_against_results.png")
-        lmplot(fig_path)
+        lmplot.savefig(fig_path)
         plt.show()
         plt.close()
     return
@@ -369,7 +369,7 @@ def transfer_rows_to_backup(file_path: Path, backup_file_path: Path):
 
 
 if __name__ == "__main__":
-    no_epochs = 32
+    no_epochs = 48
     hparameter_testing = Path("Results/Hyperparameter_testing")
     epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
     results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
@@ -394,8 +394,8 @@ if __name__ == "__main__":
     # Single version:
     results = run_BO(BO_HParameters=pspace_BO,
                      number_epochs=no_epochs,
-                     init_runs=100,
-                     total_runs=200,
+                     init_runs=80,
+                     total_runs=60,
                      load_results=True)
 
     # Multithreaded
