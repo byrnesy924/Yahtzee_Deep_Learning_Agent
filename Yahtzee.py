@@ -164,10 +164,10 @@ class Yahtzee:
         """Logic: if theres a 2 of any kind and a 3 of any kind, Or a 4 and 1 or a 5 and 0,
         then the set only contains 2 dice and 5 total dice were chosen"""
         unique_dice_chosen = list(set(self.dice_saved))  # convert back to list to subscript it later in or statement
+        number_of_chosen_for_unique_dice = (self.dice_saved.count(dice_value) for dice_value in unique_dice_chosen)
         if len(self.dice_saved) == 5 \
-                and len(unique_dice_chosen) <= 2 \
-                and (self.dice_saved.count(unique_dice_chosen[0]) == 3
-                     or self.dice_saved.count(unique_dice_chosen[1]) == 3):
+                and len(unique_dice_chosen) == 2 \
+                and 3 in number_of_chosen_for_unique_dice:
             return 25
         return 0
 
