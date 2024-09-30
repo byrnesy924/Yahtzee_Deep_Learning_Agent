@@ -88,6 +88,48 @@ def check_all_variables(yahtzee_player):
     print("Size of global variables: \n ", asizeof.asized(globals(), detail=1).format())
 
 
+def long_term_model_training_with_resource_limitations():
+        """This is a wrapper for loading previously trained weights and to continue training. In other words, train in batches. it has some flaws as epsilon resets 
+            upon re-enstatiation of the NNQ model. However, this was the quickest temporary solution to resource contraints on my machines (I would run out of memroy after around 7k epochs).
+            It also allows me to check the change in weights and dig into the model with a bit more detail
+        """
+   
+        # check_all_variables(yahtzee_player)
+        for i in range(training_runs):
+            # Define name
+            start = time.perf_counter()
+            model_name = f"64x64x64x64x64_architecture_training_step_{i+1}"
+
+            # Create and train model, with loading weights
+            yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
+            if i > 0:
+                # TODO remove this so that it loads the Current Model
+                yahtzee_player.load_model(load_as_training_model=True)
+            
+            yahtzee_player.run(1, 1, save_results=False, save_model=False, verbose=False)  # use to instantiate the weights
+            print("Weights before training: ")
+            start_weights = yahtzee_player.dqn_model.get_weights()
+            print(start_weights)
+
+            yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+
+            print("Weights after training: ")
+            print(yahtzee_player.dqn_model.get_weights())
+
+            # TODO - log this information        
+            # print(asizeof.asized(yahtzee_player.recorded_rewards, detail=1).format())
+            # print(asizeof.asized(yahtzee_player.score_tracker_special, detail=1).format())
+            # print(asizeof.asized(yahtzee_player.score_tracker_singles, detail=1).format())
+
+            print(f"Took {(time.perf_counter() - start)/3600} hrs to run {epochs} with {games_per_epoch} # games in training step {i+1}")
+
+            if i != training_runs:
+                # Delete the object to reduce memory usage - # TODO research how python will allocate memory when re-assigning variable to a new instance of the object
+                yahtzee_player.save_model(save_as_current_model=True)
+                del yahtzee_player
+        
+
+
 if __name__ == '__main__':
     start = time.perf_counter()
     random_player = Yahtzee(player_type="random")
@@ -102,7 +144,7 @@ if __name__ == '__main__':
 
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
     model_hyperparameters = {
-        "learning_rate": 0.000_25,
+        "learning_rate": 0.000_05,
         "gamma": 0.92,
         "reward_for_all_dice": 5,
         "reward_factor_for_initial_dice_picked": 0.45,
@@ -111,43 +153,21 @@ if __name__ == '__main__':
         "reward_factor_chosen_score": 3.5,
         "punish_factor_not_picking_dice": -0.3,
         "punish_amount_for_incorrect_score_choice": -3,
-        "batch_size": 200,
+        "batch_size": 400,
         "buffer_size": 100,
-        "length_of_memory": 6400,
+        "length_of_memory": 12_000,
     }
 
     start = time.perf_counter()
 
     # Train Model
-    epochs = 800
+    epochs = 1_200
     games_per_epoch = 64
-    training_runs = 10
-   
-    # check_all_variables(yahtzee_player)
-    for i in range(training_runs):
-        # Define name
-        start = time.perf_counter()
-        model_name = f"Default_architecture_training_step_{i+1}"
+    training_runs = 4
+    model_name = "Test_bug_fixes_on_NNQ_results"
 
-        # Create and train model, with loading wweights
-        yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
-        if i > 0:
-            # TODO remove this so that it loads the Current Model
-            yahtzee_player.load_model(load_as_training_model=True)
-        
-        yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
-
-        # TODO - log this information        
-        print(asizeof.asized(yahtzee_player.recorded_rewards, detail=1).format())
-        print(asizeof.asized(yahtzee_player.score_tracker_special, detail=1).format())
-        print(asizeof.asized(yahtzee_player.score_tracker_singles, detail=1).format())
-
-        print(f"Took {(time.perf_counter() - start)/3600} hrs to run {epochs} with {games_per_epoch} # games in training step {i+1}")
-
-        if i != training_runs:
-            # Delete the object to reduce memory usage - # TODO research how python will allocate memory when re-assigning variable to a new instance of the object
-            yahtzee_player.save_model(save_as_current_model=True)
-            del yahtzee_player
-        
+    yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
+    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    
     # check_all_variables(yahtzee_player)
   

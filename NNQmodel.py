@@ -24,7 +24,7 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=16):
+    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=64):
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
@@ -36,6 +36,10 @@ class QLearningModel(tf.keras.Model):
         self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
         self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
         self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+        self.dense4 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+        self.dense5 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+
+
         self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
         # Also need to change call method
 
@@ -69,6 +73,8 @@ class QLearningModel(tf.keras.Model):
         x = self.dense1(inputs)
         x = self.dense2(x)
         x = self.dense3(x)
+        x = self.dense4(x)
+        x = self.dense5(x)
         return self.output_layer(x)
 
     @tf.function
@@ -77,6 +83,8 @@ class QLearningModel(tf.keras.Model):
         This is deprecated - the actual method is implimented in the NNQ object, and uses a target
         model and an actual model. This is "Double Deep Q learning" See here
         https://towardsdatascience.com/double-deep-q-networks-905dd8325412
+
+        Documentation on tensorflow: https://www.tensorflow.org/guide/keras/writing_a_training_loop_from_scratch
 
         """
         with tf.GradientTape() as tape:
@@ -585,7 +593,7 @@ class NNQPlayer(Yahtzee):
                 print(f"Doing Epoch number {epoch}")
             
             # TODO - can hyperparameterise this to hone in on better inital exploration and tradeoff of exploration and exploitation in long run 
-            epsilon = max(0.985**epoch, 0.01)  # Epsilon greedy approach - epsilon % of time explore with random option, otherwise exploit knowledge. Decay epsilon
+            epsilon = max(0.98**epoch, 0.01)  # Epsilon greedy approach - epsilon % of time explore with random option, otherwise exploit knowledge. Decay epsilon
             # Note that currently memory is 4800, which is 5 epochs; 
   
             for game in range(games_per_epoch):
