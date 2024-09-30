@@ -253,7 +253,7 @@ class NNQPlayer(Yahtzee):
         self.last_250_scores_average = None
 
 
-    def save_model(self, save_as_training_model=True, save_as_current_model=False) -> None:  # TODO returning none vs self
+    def save_model(self, save_as_training_model=True, save_as_current_model=False) -> None:  # TODO move to another object in utils returning none vs self
         """Save the model weights"""        
         # The current most up to date model, for permanent storing
         if save_as_current_model:
@@ -273,7 +273,7 @@ class NNQPlayer(Yahtzee):
         
         return None
         
-    def load_model(self, load_as_training_model=True, load_most_current_model=False) -> None:
+    def load_model(self, load_as_training_model=True, load_most_current_model=False) -> None:  # TODO move to another object in utils with save_model
         """Load the model weights to both models. Current = most recent best model; training is for batch training purposes"""
         current_model_path = Path("Current_Model")
         training_model_path = Path("Training_Model")
@@ -313,7 +313,7 @@ class NNQPlayer(Yahtzee):
         dice_state_array = np.array(list(current_dice.values()))
 
         current_dice_saved = [dice for dice in self.dice_saved]  # List that comes from Yahtzee class
-        current_dice_saved.extend([0] * (5 - len(current_dice_saved)))  # extend dice saved until it is length 5
+        current_dice_saved.extend([0] * (5 - len(current_dice_saved)))  # extend dice saved until it is length 5  # TODO think about sorting this
         # Turn state array
         game_state_array = np.array([self.turn_number, self.sub_turn] + current_dice_saved)
 
@@ -349,7 +349,7 @@ class NNQPlayer(Yahtzee):
         return action, q_values
 
     def get_action_small_output(self, state):
-        """ Method that gets the action and q values when the output layer is size 6
+        """ Method that gets the action and q values when the output layer is size 6. DEPRECATED - architecture now uses large output
         :param state:
         :return:
         """
@@ -457,8 +457,7 @@ class NNQPlayer(Yahtzee):
         :return:
         """
         # We filter out all illegal moves by setting the probability to -1. We don't change the q values
-        # as we don't want the NN to waste any effort of learning different Q values for moves that are illegal
-        # anyway.
+        # as we don't want the NN to waste any effort of learning different Q values for moves that are illegal anyway
 
         if isinstance(action, np.ndarray):
             action_picked = action[-1]
@@ -468,21 +467,21 @@ class NNQPlayer(Yahtzee):
             action_dice = action[0:5].numpy()
 
             # If not correct turn then make -1
-        if self.sub_turn != 3 or -1 > action_picked > 12:
+        if self.sub_turn != 3 or action_picked < -1 or action_picked > 12:
             # Only pick a score if the sub turn is three other wise only pick dice
             # Also if the action picked is out of range then make it -1
             action_picked = -1
 
         # Dice that have already picked cannot be re-picked. Iterate through the current roll
         # Get current roll
-        active_roll_mapper = {1: "first_roll", 2: "second_roll", 3: "third_roll"}
+        active_roll_mapper = {1: "first_roll", 2: "second_roll", 3: "third_roll"}  # TODO move to a const rather than instantiate each time
         current_roll = self.__getattribute__(active_roll_mapper[self.sub_turn])
 
         if len(action_dice) > 5:
             raise Exception(f"Picked more than 5 dice. Picked: {action_dice} and action was {action}")
 
         # Handle if floats come out of the dice choice - this might be redundant code
-        action_dice = np.where(action_dice > 0.9, 1, 0)
+        action_dice = np.where(action_dice > 0.9, 1, 0)  # threshold for chosen dice
 
         # For each dice in the current roll, if it is 0 (i.e. already chosen) then make -1
         for index, value in enumerate(current_roll.values()):
@@ -501,7 +500,7 @@ class NNQPlayer(Yahtzee):
                 int(action_picked)]  # string of which one to pick - int because action is float
 
         # Dice move
-        dice_move_names = ["one", "two", "three", "four", "five"]
+        dice_move_names = ["one", "two", "three", "four", "five"]  # TODO const instead of instantiate in memory
         dice_move = dict(zip(dice_move_names, action_dice))
 
         return score_move, dice_move, action_picked
@@ -519,7 +518,7 @@ class NNQPlayer(Yahtzee):
 
         updated_score = self.calculate_score()
 
-        # TODO investigate negative score here and remove if bugs fixed
+        # investigate negative score here and remove if bugs fixed
         if updated_score < current_score or self.reward_factor_chosen_score*(updated_score - current_score) < 0:
             print("Somehow score is negative??")
             print("Updated score: ", updated_score, " Original score:", current_score)
@@ -532,8 +531,8 @@ class NNQPlayer(Yahtzee):
             self.print_scores()
             raise Exception("Found a negative number - investigate!")
 
-        # Factor in the case that the
-        if self.turn_number == 1 and self.sub_turn == 1:
+        # Factor in the case that the game finishes
+        if self.turn_number == 1 and self.sub_turn == 1:  # Note that turn will tick over the sub turn from 3 to 1 and the turn from 13 to 1
             reward = self.reward_factor_chosen_score*updated_score
         else:
             reward = self.reward_factor_chosen_score*(updated_score - current_score)
@@ -567,7 +566,7 @@ class NNQPlayer(Yahtzee):
             # Note that sub turn is INCREMENTED after self.turn which is above, therefore check if sub turn is 1
             # If the network picked an action at the end, reward it
 
-            if 0 < action_picked < 14:
+            if 0 < action_picked < 13:
                 # Double the reward for successfully choosing a score
                 # *(updated_score - current_score)
                 recorded_reward_factor_for_picking_choice_correctly = self.reward_factor_for_picking_choice_correctly

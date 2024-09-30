@@ -150,7 +150,7 @@ if __name__ == '__main__':
     start = time.perf_counter()
 
     # Train Model
-    epochs = 1_200
+    epochs = 1_000
     games_per_epoch = 64
     training_runs = 4
     model_name = "Test_bug_fixes_on_NNQ_results"

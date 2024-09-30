@@ -331,7 +331,6 @@ class Yahtzee:
         # If its the third dice roll i.e. sub turn 3, then pick a score!
         if self.sub_turn == 3:
             if player_input:
-                # TODO make input incorporate the edge case of an incorrect input
                 print("Your chosen dice are: \n")
                 print(self.dice_saved)
                 score_choice = input("""input a score choice. The available are: singles (e.g. ones), three_of_a_kind, 
