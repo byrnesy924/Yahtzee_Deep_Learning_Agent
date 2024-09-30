@@ -2,6 +2,10 @@ import random
 
 import numpy as np
 
+# The testing script is full of boiler plate because I did not follow SOLID design principles when building the Yahtzee game
+# This has a huge impact on unit testing as the Yahtzee class is a tangled mess - a monolithic thing.
+# It also had an effect on development as it was more difficult to find and iron out bugs. Lesson learned!
+
 
 class Yahtzee:
     """"
@@ -163,13 +167,13 @@ class Yahtzee:
         if len(self.dice_saved) == 5 \
                 and len(unique_dice_chosen) <= 2 \
                 and (self.dice_saved.count(unique_dice_chosen[0]) == 3
-                     or self.dice_saved.count(unique_dice_chosen[0]) == 3):
+                     or self.dice_saved.count(unique_dice_chosen[1]) == 3):
             return 25
         return 0
 
     def pick_small_straight(self):
         """Pick a 4 in a row straight. abuse that there is only 3 possibilities for this, and that sets are sorted"""
-        unique_dice_chosen = list(set(self.dice_saved))
+        unique_dice_chosen = sorted(list(set(self.dice_saved)))
         if unique_dice_chosen[0:4] == [1, 2, 3, 4] or unique_dice_chosen[0:4] == [2, 3, 4, 5] \
                 or unique_dice_chosen[0:4] == [3, 4, 5, 6]:
             return 30
@@ -391,11 +395,35 @@ class Yahtzee:
         self.sub_turn = 1
         self.dice_saved = []
         self.chosen_scores = []  # 9 February added this tracker of chosen scores
+
+        self.third_roll, self.second_roll, self.first_roll = self.empty_roll.copy(), self.empty_roll.copy(), self.empty_roll.copy()
         self.roll_dice()
-        self.third_roll, self.second_roll, self.first_roll = self.empty_roll, self.empty_roll, self.empty_roll
-        score_card = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind","four_of_a_kind",
+
+        score_card = ["ones", "twos", "threes", "fours", "fives", "sixes", "three_of_a_kind", "four_of_a_kind",
                       "full_house", "small_straight", "large_straight", "yahtzee", "chance", "yahtze_bonus",
                       "singles_total", "total_score"]
         for item in score_card:
             self.__setattr__(item, 0)
         self.get_bonus = False
+
+
+def random_player_game(random_player: Yahtzee):
+    random_player.roll_dice()
+    for i in range(12):
+        for y in range(3):
+            if random_player.sub_turn == 1:
+                random_player.roll_dice()
+            random_player.turn(player_input=False, random_choice=True)
+    score = random_player.calculate_score()
+    random_player.reset_game()
+    return score
+
+
+if __name__ == "__main__":
+    game = Yahtzee(player_type="Human")
+
+    # for i in range(13):
+    #     game.turn(player_input=True)
+
+    random_player = Yahtzee(player_type="random")
+    random_results = [random_player_game(random_player=random_player) for i in range(2)]

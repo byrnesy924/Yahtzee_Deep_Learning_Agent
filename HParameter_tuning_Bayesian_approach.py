@@ -27,58 +27,117 @@ from bayes_opt.event import Events
 from bayes_opt.util import load_logs
 
 # Import black box functions
-from Hparameter_tuning_random_approach import test_model
+# from Hparameter_tuning_random_approach import test_model  # 6 June updated to use function below
 from NNQmodel import NNQPlayer
 
 
-# Define paremter space
+def test_model(learning_rate=0.0008,
+               gamma=0.92,
+               structure_of_layers=32,
+               number_layers=3,
+               reward_for_all_dice=5,
+               reward_factor_for_initial_dice_picked=0.45,
+               reward_factor_total_score=3,
+               reward_factor_chosen_score=3.5,
+               reward_factor_for_picking_choice_correctly=5.2,
+               punish_amount_for_incorrect_score_choice=-3,
+               punish_for_not_picking_dice=-0.3,
+               batch_size=100,
+               memory=4800,
+               buffer_size=100,
+               name="HP_testing_architecture", random_results=False):
+    """ this is a black box wrapper function that trains the Q-Learning Network
+    """
+    model = NNQPlayer(
+        show_figures=False,
+        learning_rate=learning_rate,
+        gamma=gamma,
+        structure_of_layers=[structure_of_layers]*int(number_layers),
+        reward_for_all_dice=reward_for_all_dice,
+        reward_factor_total_score=reward_factor_total_score,
+        reward_factor_chosen_score=reward_factor_chosen_score,
+        reward_factor_for_initial_dice_picked=reward_factor_for_initial_dice_picked,
+        reward_factor_for_picking_choice_correctly=reward_factor_for_picking_choice_correctly,
+        punish_amount_for_incorrect_score_choice=punish_amount_for_incorrect_score_choice,
+        punish_factor_not_picking_dice=punish_for_not_picking_dice,
+        batch_size=int(batch_size),  # Note these need to be integers - coerce them to integers here for Bayesian Opt
+        length_of_memory=int(memory),
+        buffer_size=int(buffer_size),
+        name=name
+    )
+
+    model.run(48, 64, save_results=False, save_model=False, verbose=False)
+    results = [learning_rate,
+               gamma,
+               structure_of_layers,
+               number_layers,
+               reward_for_all_dice,
+               reward_factor_for_initial_dice_picked,
+               reward_factor_for_picking_choice_correctly,
+               batch_size,
+               memory,
+               buffer_size,
+               model.average_score,
+               model.average_loss
+               ]
+
+    # return results
+    # In this random script, we return a list of results for formatting into a DataFrame
+    # But in the Bayesian approach, we can only return a target variable, not a list
+    if random_results:
+        return results
+    return model.last_250_scores_average
+
+
+# Define paremter space; 6 June - reduced curse of dimensionality by focusing on architecture
+# To remove these just comment them out. Note that not passing a tuple throws errors!
+# Also throws errors when the distance between them is 0
 pspace_BO = {
-    "batch_size": (32, 128),
-    "buffer_size": (32, 128),
-    "epochs": 12,
-    "gamma": (0.88, 0.99),
-    "learning_rate": (0.000_01, 0.001),
-    "memory": (2_000, 10_000),
-    "punish_amount_for_incorrect_score_choice": (-5, 0),
-    "punish_for_not_picking_dice": (-1, 0),
-    "reward_for_all_dice": (0, 10),
-    "reward_factor_for_initial_dice_picked": (0, 1),
-    "reward_factor_for_picking_choice_correctly": (0, 10),
+    # "batch_size": (100, 100),
+    # "buffer_size": (100, 100),
+    # "epochs": (16, 16),
+    # "gamma": (0.92, 0.92),
+    "learning_rate": (0.000_01, 0.000_1),
+    # "memory": (4800, 4800),
+    "number_layers": (3, 7),
+    # "punish_amount_for_incorrect_score_choice": (-3, -3),
+    # "punish_for_not_picking_dice": (-0.3, -0.3),
+    # "reward_for_all_dice": (5, 5),
+    # "reward_factor_for_initial_dice_picked": (0.45, 0.45),
+    # "reward_factor_for_picking_choice_correctly": (5.2, 5.2),
     "reward_factor_total_score": (0, 5),
-    "reward_factor_chosen_score": (0, 5)
+    # "reward_factor_chosen_score": (3.5, 3.5),
+    "structure_of_layers": (16, 64)
 }
 
 
 def run_BO(BO_HParameters, number_epochs, init_runs, total_runs, load_results=False):
 
     # Included bounds transformer to dynamically change the bounds as the Bayesin agents search
-    bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[1, 1, 0.1, 0.01, 0.00001, 100, 0.1, 0.1,
-                                                                              0.1, 0.1, 0.1, 0.1, 0.1])
+    bounds_transformer = SequentialDomainReductionTransformer(minimum_window=[0.000_01, 1, 1, 4])
 
     optimizer = BO(
         f=test_model,
         pbounds=BO_HParameters,
         verbose=1,
-        random_state=random.randint(0, 100),
+        random_state=random.randint(0, 10),  # TODO increase reproducability by limiting this
         allow_duplicate_points=True,  # Just easier to mark this true as I'm piece-meal mapping the space
         # bounds_transformer=bounds_transformer  # TODO get to work
     )
 
-    logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
-    logs_path = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs.log.json")
+    # logs_backup = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/BO_logs_backup.log.json")
+    logs_path = Path(f"Results/Hyperparameter_testing/{number_epochs}_epochs/logs.log")
 
-    print(str(logs_backup))
+    # if load_results and os.path.isfile(logs_backup):
+    #     # Case where logs is not present but load is - then load the backup
+    #     print(str(logs_backup))
+    #     load_logs(optimizer, logs=[str(logs_backup)])
+    #     # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs
+    #     # in a list! this implimentation works fine but creating a new log each time may have been smarter
+    #     print("Loaded previous points:")
+    #     print('\n is max:\n', optimizer.max)
 
-    if load_results and os.path.isfile(logs_backup):
-        # Case where logs is not present but load is - then load the backup
-        print(str(logs_backup))
-        load_logs(optimizer, logs=[str(logs_backup)])
-        # See this - https://www.vidensanalytics.com/nouveau-blog/bayesian-optimization-to-the-rescue can load all logs
-        # in a list! this implimentation works fine but creating a new log each time may have been smarter
-        print("Loaded previous points:")
-        print('\n is max:\n', optimizer.max)
-
-    logger = JSONLogger(path=str(logs_path))
+    logger = JSONLogger(path=str(logs_path), reset=True)
     optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
 
     print("\nOptimising!\n")
@@ -255,7 +314,7 @@ def plot_correlation_heatmap(results: pd.DataFrame, no_epochs: int):
     """
     fig, ax = plt.subplots(figsize=(20, 20))
     heatmap = sns.heatmap(results.corr(), annot=True, ax=ax)
-    # heatmap.fig.suptitle('HeatMAp of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
+    heatmap.figure.suptitle('Heat map of HyperParameters correlation with Avg_Score', y=1.02, fontsize=16)
     fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_heatmap.png")
     plt.savefig(fig_path)
     plt.show()
@@ -270,11 +329,9 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
     :type results: pd.DataFrame
     """
     vars = results.drop(columns="target").columns.to_list()
-
     pair_plot = sns.pairplot(results, vars=vars, hue="target")
-
-    # TODO look into this deprecation
-    pair_plot.fig.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
+    pair_plot.set(ylim=60)
+    pair_plot.figure.suptitle('Pair Plot of HyperParameters with Color by Avg_Score', y=1.02, fontsize=16)
     fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Hyperparameter_testing_pairplot_results.png")
     plt.savefig(fig_path)
     plt.show()
@@ -285,13 +342,15 @@ def plot_hyperparameter_space(results: pd.DataFrame, no_epochs: int):
 def plot_each_variable_against_target(results: pd.DataFrame, no_epochs: int):
     vars_to_plot = results.drop(columns="target").columns.to_numpy()
 
+    # TODO try refactor where the FacetGrid is split amongst the vars rather than one per thing 
     for var in vars_to_plot:
         sub_df = results[["target", var]].copy().sort_values(var)
-        sns.lmplot(data=sub_df, x=var, y="target", order=20)
+        lmplot = sns.lmplot(data=sub_df, x=var, y="target", order=20)  # SNS API: Returns a FacetGrid object
+        lmplot.set(ylim=(0, 60), yticks=[10, 20, 30, 40, 50])
+        lmplot.set_titles(var, "Target (avg score last 100 games)")
 
         fig_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/{var}_against_results.png")
-        plt.savefig(fig_path)
-
+        lmplot.savefig(fig_path)
         plt.show()
         plt.close()
     return
@@ -310,34 +369,34 @@ def transfer_rows_to_backup(file_path: Path, backup_file_path: Path):
 
 
 if __name__ == "__main__":
-    no_epochs = pspace_BO["epochs"]
+    no_epochs = 48
     hparameter_testing = Path("Results/Hyperparameter_testing")
     epochs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs")
     results_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/Bayesian_results.csv")
 
-    load_results = True
-    if not os.path.isdir(hparameter_testing):
-        os.makedirs(hparameter_testing)
-    if not os.path.isdir(epochs_path):
-        os.makedirs(epochs_path)
-        load_results = False
+    # load_results = True
+    # if not os.path.isdir(hparameter_testing):
+    #     os.makedirs(hparameter_testing)
+    # if not os.path.isdir(epochs_path):
+    #     os.makedirs(epochs_path)
+    #     load_results = False
 
-    logs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/BO_logs.log.json")
-    logs_backup = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/BO_logs_backup.log.json")
+    logs_path = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/logs.log")
+    # logs_backup = Path(f"Results/Hyperparameter_testing/{no_epochs}_epochs/BO_logs_backup.log.json")
 
-    if load_results and os.path.isfile(logs_path):
-        # Create a backup with the appended files so as to not lose points when resetting
-        # This is necessary because the JSONlogger object only logs seen points and will overwrite the object when
-        transfer_rows_to_backup(logs_path, logs_backup)
+    # if load_results and os.path.isfile(logs_path):
+    #     # Create a backup with the appended files so as to not lose points when resetting
+    #     # This is necessary because the JSONlogger object only logs seen points and will overwrite the object when
+    #     transfer_rows_to_backup(logs_path, logs_backup)
 
     start = perf_counter()
 
     # Single version:
     results = run_BO(BO_HParameters=pspace_BO,
                      number_epochs=no_epochs,
-                     init_runs=1,
-                     total_runs=0,
-                     load_results=load_results)
+                     init_runs=80,
+                     total_runs=60,
+                     load_results=True)
 
     # Multithreaded
     # no_processes = os.cpu_count() - 6
@@ -349,7 +408,9 @@ if __name__ == "__main__":
     results.to_csv(results_path, index=False)
     BO_time = perf_counter()
 
-    print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*4*20} times")
+    print(results.sort_values("target", ascending=False).head(20))
+
+    # print(f"BO took {round((BO_time - start)/60, 2)} mins to do method {no_processes*4*20} times")
 
     # run_GPyOPT(GPy_HParameters=pspace_GPy)  # Took ~ 60% longer and 3.11 + multiprocessing failed
     # print(f"GPy took {round((perf_counter() - BO_time)/60, 2)} mins to do method 5 times")
@@ -368,5 +429,3 @@ if __name__ == "__main__":
 
     plot_correlation_heatmap(results=results, no_epochs=no_epochs)
     plot_hyperparameter_space(results=results, no_epochs=no_epochs)
-
-    print(results.sort_values("target", ascending=False).head(20))

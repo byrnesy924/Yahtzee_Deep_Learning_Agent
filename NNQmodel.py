@@ -24,24 +24,36 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
-    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=64):
+    def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32, structure_of_layers=None):
         """
 
         :param num_actions: number of outputs of the model, i.e. decisions of the model
         :param num_samples: the number of samples to train the model on
         :param num_states: the number of inputs, i.e. the states of the game
+        :param structure_of_layers: list or None - provide this to parameterise the architecture of the network.
         """
-        # TODO Experiment with architecture as a hyper parameter
         super(QLearningModel, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense4 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
-        self.dense5 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu')
+        # Using structure of layers -> parameterize the architecture.
+        # If argument is none, assume three layers, use num_nodes_per_layer
+        self.structure_of_layers = structure_of_layers
 
+        # 26 June - intialiser to reduce noise in HParameter tuning
+        initializer = tf.keras.initializers.VarianceScaling(scale=1,
+                                                            mode="fan_in",
+                                                            distribution="truncated_normal",
+                                                            seed=10
+                                                            )
 
-        self.output_layer = tf.keras.layers.Dense(num_actions)  # Method is to loop through no. layers and change
-        # Also need to change call method
+        if structure_of_layers is None:
+            self.dense1 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
+            self.dense2 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
+            self.dense3 = tf.keras.layers.Dense(num_nodes_per_layer, activation='relu', kernel_initializer=initializer)
+            self.output_layer = tf.keras.layers.Dense(num_actions)
+        else:
+            if not isinstance(structure_of_layers, list):
+                raise Exception("Pass a list of integers to the Q learning network to parameterize architecture")
+            self.dense_layers = [tf.keras.layers.Dense(no_nodes) for no_nodes in structure_of_layers]
+            self.output_layer = tf.keras.layers.Dense(num_actions)
 
         self.gradients = None
         self.num_actions = num_actions  # Store number of actions
@@ -70,12 +82,17 @@ class QLearningModel(tf.keras.Model):
         # self.rewards = np.random.rand(num_samples)  # Vector of num_samples in length
 
     def call(self, inputs):
-        x = self.dense1(inputs)
-        x = self.dense2(x)
-        x = self.dense3(x)
-        x = self.dense4(x)
-        x = self.dense5(x)
+        if self.structure_of_layers is None:
+            x = self.dense1(inputs)
+            x = self.dense2(x)
+            x = self.dense3(x)
+            return self.output_layer(x)
+        
+        x = self.dense_layers[0](inputs)
+        for layer in self.dense_layers[1:]:
+            x = layer(x)
         return self.output_layer(x)
+        
 
     @tf.function
     def train_step(self, states, actions, rewards):
@@ -100,6 +117,7 @@ class QLearningModel(tf.keras.Model):
 
     # This train method is deprecated
     def train_model_epoch(self, num_epochs, num_samples, batch_size):
+        """Deprecated, was used for learning and testing"""
         for epoch in range(num_epochs):
             print(f"Epoch {epoch + 1}/{num_epochs}")
             for i in range(0, num_samples, batch_size):
@@ -118,6 +136,7 @@ class NNQPlayer(Yahtzee):
     def __init__(self, large_nnq_output=True,
                  learning_rate=0.000001,
                  gamma=0.99,
+                 model_architecture=[32, 32, 32],
                  reward_for_all_dice=5,
                  reward_factor_for_initial_dice_picked=0.1,
                  reward_factor_for_picking_choice_correctly=2,
@@ -125,18 +144,19 @@ class NNQPlayer(Yahtzee):
                  reward_factor_chosen_score=1,
                  punish_factor_not_picking_dice=0,
                  punish_amount_for_incorrect_score_choice=-3,
+                 structure_of_layers=[32, 32, 32],
                  length_of_memory=2000,
                  batch_size=64,
                  buffer_size=32,
                  show_figures=False,
-                 name="Basic"
+                 name="Basic",
                  ):
         """
         Inherits from Yahtzee, stores
         :param verbose_nnq_output: (Bool) Experiment with two architectures - this is the version with more outputs
         """
-        super(NNQPlayer, self).__init__()  # Originally passed Yahtzee to super - should be NNQPlayer
-
+        super(NNQPlayer, self).__init__(structure_of_layers)  # Originally passed Yahtzee to super - should be NNQPlayer
+        
         # Hyper parameters
         self.learning_rate = learning_rate
         # See stack overflow below - learning rate was quite high at 0.001 and lead to NaN output because of divergence
@@ -179,8 +199,28 @@ class NNQPlayer(Yahtzee):
         }
         self.recorded_rewards = pl.DataFrame(schema=reward_cols)
 
-        self.dqn_model = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
-        self.dqn_target = QLearningModel(num_states=self.state_size, num_actions=self.action_size, num_samples=1000)
+        # Polars implimentation
+        reward_cols = {
+            "reward_for_all_dice": pl.Float32,
+            "punish_for_not_picking_dice": pl.Float32,
+            "punish_amount_for_incorrect_score_choice": pl.Float32,
+            "reward_factor_for_initial_dice_picked": pl.Float32,
+            "reward_factor_for_picking_choice_correctly": pl.Float32,
+            "reward_factor_total_score": pl.Float32,
+            "reward_factor_chosen_score": pl.Float32
+        }
+        self.recorded_rewards = pl.DataFrame(schema=reward_cols)
+
+        self.dqn_model = QLearningModel(num_states=self.state_size,
+                                        num_actions=self.action_size,
+                                        num_samples=1000, 
+                                        structure_of_layers=model_architecture
+                                        )
+        self.dqn_target = QLearningModel(num_states=self.state_size, 
+                                         num_actions=self.action_size,
+                                         num_samples=1000, 
+                                         structure_of_layers=model_architecture
+                                         )
         self.optimizers = tf.keras.optimizers.Adam(learning_rate=self.learning_rate, )
 
         # Memory size to train on
@@ -210,6 +250,7 @@ class NNQPlayer(Yahtzee):
         # Overall score of the model - used for hyperparameter tuning
         self.average_score = None  # float - update after running
         self.average_loss = None  # float - update after running
+        self.last_250_scores_average = None
 
 
     def save_model(self, save_as_training_model=True, save_as_current_model=False) -> None:  # TODO returning none vs self
@@ -665,6 +706,7 @@ class NNQPlayer(Yahtzee):
         scores = pl.DataFrame([final_scores.tolist(), losses.tolist()], schema={"Scores": pl.Float32, "Loss": pl.Float32})
 
         self.average_score = sum(final_scores) / len(final_scores)  # Get the average score of the model
+        self.last_250_scores_average = sum(final_scores[-250:]) / 250
         # self.average_loss = sum(losses) / len(losses)
         
         # Rolling average and standard deviation
@@ -735,7 +777,7 @@ class NNQPlayer(Yahtzee):
         # del single_scores
 
         self.score_tracker_special = pd.concat(
-            [self.score_tracker_special, df_special_score], copy=False)  # unsure why pycharm cant see
+            [self.score_tracker_special, df_special_score], copy=False)
         self.score_tracker_singles = pd.concat([self.score_tracker_singles, df_single_scores], copy=False)
         return
 
