@@ -1,5 +1,5 @@
 # This script is designed to test the Yahtzee game code
-import pytest
+# import pytest
 from Yahtzee import Yahtzee
 
 # This script is full of boiler plate because I did not follow SOLID design principles when building the Yahtzee game
@@ -7,6 +7,8 @@ from Yahtzee import Yahtzee
 
 if __name__ == "__main__":
     test_game = Yahtzee(player_type="Model")
+
+    # test turn method TODO
 
     # pick_score - highly coupled and complex, eek
     def test_pick_score_singles(yahtzee_game: Yahtzee):
@@ -144,10 +146,4 @@ if __name__ == "__main__":
     test_pick_score_singles(test_game)
     test_pick_score_bottom_half(test_game)
 
-    # Do the below last
-    # pick ones - sixes but set test_game.dice_saved before hand
-
-    # pick_three_of_a_kind, four of a kind etc.
     print("Tests passed")
-
-
