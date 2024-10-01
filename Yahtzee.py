@@ -289,9 +289,11 @@ class Yahtzee:
                     self.chosen_scores.append("yahtzee")
                     self.yahtzee = self.pick_yahtzee()
                 return pick
+            case _:
+                return None
         return pick
 
-    def turn(self, player_input=False, random_choice=False, choice_dice=None, choice_score=None, verbose: bool = False):
+    def turn(self, player_input=False, random_choice=False, choice_dice=None, choice_score: str = None, verbose: bool = False):
         """A single turn of the game"""
         if self.sub_turn == 1 and self.turn_number != 1:
             # Remove the first roll of the dice, do that when resetting the game

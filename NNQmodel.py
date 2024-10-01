@@ -142,7 +142,7 @@ class NNQPlayer(Yahtzee):
                  reward_factor_for_picking_choice_correctly=2,
                  reward_factor_total_score=0.4,
                  reward_factor_chosen_score=1,
-                 punish_factor_not_picking_dice=0,
+                 punish_factor_not_picking_dice=0.01,
                  punish_amount_for_incorrect_score_choice=-3,
                  structure_of_layers=[32, 32, 32],
                  length_of_memory=2000,
@@ -512,7 +512,7 @@ class NNQPlayer(Yahtzee):
         This also calculates the reward received
         Note that this is heavily coupled with calculate action - it was originally one function
         """
-        current_number_dice_saved = len(self.dice_saved)
+        starting_number_dice_saved = len(self.dice_saved)
         current_score = self.calculate_score()
         score = self.turn(player_input=False, choice_dice=dice_move, choice_score=score_move)
 
@@ -541,11 +541,11 @@ class NNQPlayer(Yahtzee):
         recorded_awards_initial_reward = reward
 
         # Score is returned by the Yahtzee Game, if it is None then the chosen score was previously picked in the game
-        if score is None:
+        if score is None or (action_picked == -1 and self.sub_turn == 1):
             recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
             reward -= self.punish_amount_for_incorrect_score_choice
         else:
-            recorded_rewards_punish_score = -1*self.punish_amount_for_incorrect_score_choice
+            recorded_rewards_punish_score = 0
 
         reward += self.reward_factor_total_score*updated_score  # this multiplyer is a hyper parameter
         recorded_rewards_reward_factor_total_score = self.reward_factor_total_score*updated_score
@@ -561,9 +561,9 @@ class NNQPlayer(Yahtzee):
         # Two approaches: make it += a certain amount of reward
         # Or, make it a multiplier of only the chosen score rather than the total score CURRENT IMPLIMENTATION
 
-        reward_for_all_dice, punish_for_incorrect_choice, reward_for_initial_dice = 0, 0, 0  # Record 0 if no reward
+        reward_for_all_dice, punish_for_incorrect_choice, reward_for_initial_dice, recorded_reward_factor_for_picking_choice_correctly, recorded_reward_factor_for_picking_choice_correctly = [0]*5  # Default to Record 0 if no reward
         if self.sub_turn == 1:
-            # Note that sub turn is INCREMENTED after self.turn which is above, therefore check if sub turn is 1
+            # Note that sub turn is INCREMENTED after self.turn which is above, therefore check if sub turn is 1 rather than 3
             # If the network picked an action at the end, reward it
 
             if 0 < action_picked < 13:
@@ -571,15 +571,14 @@ class NNQPlayer(Yahtzee):
                 # *(updated_score - current_score)
                 recorded_reward_factor_for_picking_choice_correctly = self.reward_factor_for_picking_choice_correctly
                 reward += self.reward_factor_for_picking_choice_correctly  # *(updated_score - current_score)
-            else:
-                recorded_reward_factor_for_picking_choice_correctly = 0
+
 
             # Current Implementation - If it picked all its dice, reward it more. If it didn't, punish it
-            if self.sub_turn == 1 and len(self.dice_saved) == 5:
+            if len(self.dice_saved) == 5:
                 reward_for_all_dice = self.reward_for_all_dice
                 reward += reward_for_all_dice
-            elif self.punish_for_not_picking_dice > 0 and current_number_dice_saved > 0:
-                punish_for_incorrect_choice = self.punish_for_not_picking_dice
+            else:
+                punish_for_incorrect_choice = self.punish_for_not_picking_dice*(3 - len(self.dice_saved))
                 reward -= punish_for_incorrect_choice
         else:
             # If it is not the last sub turn, reward it very slightly for picking its dice
@@ -590,12 +589,8 @@ class NNQPlayer(Yahtzee):
 
             # New implimentation - just reward it for picking dice
             reward_for_initial_dice = self.reward_factor_for_initial_dice_picked * (len(self.dice_saved) -
-                                                                                    current_number_dice_saved)
+                                                                                    starting_number_dice_saved)
             reward += reward_for_initial_dice
-
-            # Note need to record 0 here in this branch
-            # Record 0 if no reward
-            recorded_reward_factor_for_picking_choice_correctly = 0
 
         # Record these reward factors
         new_row = pl.DataFrame({
