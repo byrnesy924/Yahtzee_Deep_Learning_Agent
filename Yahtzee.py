@@ -351,7 +351,7 @@ class Yahtzee:
             score = self.pick_score(score_choice)
             self.turn_number += 1
             self.sub_turn = 1
-            self.dice_saved = []
+            # self.dice_saved = []  # 2 October 2024 - bug - I was using dice saved to reward NNQ model, but it was clearing it
 
             if verbose or player_input:
                 print(f"The score you chose was: {score_choice}\n")

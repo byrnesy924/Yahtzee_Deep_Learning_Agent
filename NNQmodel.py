@@ -24,6 +24,7 @@ from Yahtzee import Yahtzee
 
 # Create a custom Q-learning network using TensorFlow's subclassing API
 class QLearningModel(tf.keras.Model):
+    """Model used for experementation and for me to upskill - not actual DDQN model for Yahtzee"""
     def __init__(self, num_actions, num_samples, num_states, num_nodes_per_layer=32, structure_of_layers=None):
         """
 
@@ -222,6 +223,7 @@ class NNQPlayer(Yahtzee):
                                          structure_of_layers=model_architecture
                                          )
         self.optimizers = tf.keras.optimizers.Adam(learning_rate=self.learning_rate, )
+        self.loss_function = tf.keras.losses.MeanSquaredError()
 
         # Memory size to train on
         self.memory = deque(maxlen=length_of_memory)
@@ -411,16 +413,19 @@ class NNQPlayer(Yahtzee):
             target_q = self.dqn_target(tf.convert_to_tensor(np.vstack(next_states), dtype=tf.float32))
             if self.large_action_size:
                 # This is the updated method four output size of 18
+                # this is a very rough implimentation of ArgMax using a mask of the max of each tensor 
+                # It gets the ArgMax of the first 13 outputs of the q values - the argmax of the choice
                 max_values = tf.reduce_max(target_q[:, -13:], axis=1)
                 mask = tf.cast(tf.equal(target_q[:, -13:], tf.expand_dims(max_values, axis=1)), dtype=tf.float32)
                 # mask is a matrix where the max Q value is a 1, and 0 all else
+                
+                # The next action is then the argmax of index 0-12, plus the values of the 5 dice
                 next_action = tf.concat([target_q[:, 0:5], mask], axis=1)
 
                 # Also have to one-hot encode actions. This is because they are stored
                 # As integers in a column, and this needs to be expanded
                 one_hot_actions = tf.one_hot(tf.transpose(tf.cast(actions[:, -1:], tf.int8)), depth=13, )
                 actions = tf.concat([actions[:, 0:5], one_hot_actions[0]], axis=1)
-
             else:
                 # Convert q values, ie. the DQN output into an action vector
                 action_dice = tf.math.sigmoid(
@@ -431,7 +436,7 @@ class NNQPlayer(Yahtzee):
 
             target_value = tf.reduce_sum(next_action * target_q, axis=1)
 
-            target_value = (1 - dones) * self.gamma * target_value + rewards
+            target_value = rewards + (1 - dones) * self.gamma * target_value
             # Sudo code - if done, then reward is just reward (1-done). If not, then add on the target q* learning rate
 
             # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
@@ -440,9 +445,7 @@ class NNQPlayer(Yahtzee):
             # TODO - validate this code
             main_value = tf.reduce_sum(actions * main_q, axis=1)
 
-            # hand coded mean squared error between the two functions - could also use tf function
-            error = tf.square(main_value - target_value) * 0.5
-            error = tf.reduce_mean(error)
+            error = self.loss_function(main_value, target_value)  # mean squared error
 
             dqn_grads = tape.gradient(error, dqn_variable)
             self.optimizers.apply_gradients(zip(dqn_grads, dqn_variable))
@@ -532,10 +535,12 @@ class NNQPlayer(Yahtzee):
             raise Exception("Found a negative number - investigate!")
 
         # Factor in the case that the game finishes
-        if self.turn_number == 1 and self.sub_turn == 1:  # Note that turn will tick over the sub turn from 3 to 1 and the turn from 13 to 1
+        if self.turn_number == 14 and self.sub_turn == 1:  # Note that turn will tick over the sub turn from 3 to 1 and the turn from 13 to 14!
             reward = self.reward_factor_chosen_score*updated_score
         else:
             reward = self.reward_factor_chosen_score*(updated_score - current_score)
+            if self.sub_turn != 1 and (updated_score - current_score) > 0:
+                raise Exception("Not a score pick turn but score increased")
 
         # Polars method - each of the rewards record to a variable and concat a arow at the end
         recorded_awards_initial_reward = reward
@@ -578,7 +583,7 @@ class NNQPlayer(Yahtzee):
                 reward_for_all_dice = self.reward_for_all_dice
                 reward += reward_for_all_dice
             else:
-                punish_for_incorrect_choice = self.punish_for_not_picking_dice*(3 - len(self.dice_saved))
+                punish_for_incorrect_choice = self.punish_for_not_picking_dice*(4 - len(self.dice_saved))
                 reward -= punish_for_incorrect_choice
         else:
             # If it is not the last sub turn, reward it very slightly for picking its dice
@@ -848,7 +853,7 @@ class NNQPlayer(Yahtzee):
 # For testing
 if __name__ == '__main__':
     start = time.perf_counter()
-    agent = NNQPlayer()
+    agent = NNQPlayer(name="NNQ_testing")
     agent.run(75, 64, verbose=True)
 
     print(f"Took {time.perf_counter() - start} seconds")
