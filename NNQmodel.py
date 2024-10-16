@@ -426,6 +426,8 @@ class NNQPlayer(Yahtzee):
                 # As integers in a column, and this needs to be expanded
                 one_hot_actions = tf.one_hot(tf.transpose(tf.cast(actions[:, -1:], tf.int8)), depth=13, )
                 actions = tf.concat([actions[:, 0:5], one_hot_actions[0]], axis=1)
+                
+                del mask, one_hot_actions, max_values  # Attempt to reduce memory usage, albeit at slower run time
             else:
                 # Convert q values, ie. the DQN output into an action vector
                 action_dice = tf.math.sigmoid(
@@ -442,7 +444,6 @@ class NNQPlayer(Yahtzee):
             # In double q learning, the main model calculates the actions, and the target evaluates the actions (evaluates the next states)
             main_q = self.dqn_model(tf.convert_to_tensor(np.vstack(states), dtype=tf.float32))
 
-            # TODO - validate this code
             main_value = tf.reduce_sum(actions * main_q, axis=1)
 
             error = self.loss_function(main_value, target_value)  # mean squared error
@@ -552,6 +553,8 @@ class NNQPlayer(Yahtzee):
         else:
             recorded_rewards_punish_score = 0
 
+        # TODO - new reward - the % of the max score or all choices
+
         reward += self.reward_factor_total_score*updated_score  # this multiplyer is a hyper parameter
         recorded_rewards_reward_factor_total_score = self.reward_factor_total_score*updated_score
         # Current Implementation - if it picks a score and its the wrong sub turn then penalise it
@@ -623,6 +626,7 @@ class NNQPlayer(Yahtzee):
         :return:
         """
         # Define epochs
+        start = time.perf_counter()
         losses = array.array("f")
         final_scores = array.array("f")
         # Scorecards now polars database - reduce memory usage (but still will increase from raw string in list)
@@ -630,7 +634,7 @@ class NNQPlayer(Yahtzee):
         for epoch in range(number_of_epochs):
             if epoch % 100 == 0:
                 # Quick and dirty way to monitor progress on another machine
-                print(f"Doing Epoch number {epoch}")
+                print(f"Doing Epoch number {epoch}. Elapsed time: {time.perf_counter() - start}")
             
             # TODO - can hyperparameterise this to hone in on better inital exploration and tradeoff of exploration and exploitation in long run 
             epsilon = max(0.98**epoch, 0.01)  # Epsilon greedy approach - epsilon % of time explore with random option, otherwise exploit knowledge. Decay epsilon
@@ -650,7 +654,7 @@ class NNQPlayer(Yahtzee):
                         # moving directly changes the game state stored in this object
                         next_state = self.game_state_to_nn_input()
 
-                        # December 27 - Identifying why NaN appear and NNQ stops playing
+                        # December 27 2023 - Identifying why NaN appear and NNQ stops playing
                         # Reason - the learning value was too high and the model was diverging
                         if True in np.isnan(action):
                             print("Found a NaN!\n", "Epoch is: ", epoch, "\nGame is: ", game)
@@ -677,10 +681,10 @@ class NNQPlayer(Yahtzee):
                 
                 final_scores.append(self.calculate_score())
 
-                if "scorecards" not in locals():
-                    scorecards = pl.from_dict(self.print_scores(verbose=False))    
-                else:
-                    pl.concat([scorecards, pl.from_dict(self.print_scores(verbose=False))])
+                # if "scorecards" not in locals():
+                #     scorecards = pl.from_dict(self.print_scores(verbose=False))    
+                # else:
+                #     pl.concat([scorecards, pl.from_dict(self.print_scores(verbose=False))])
                 
                 self.count_scores_to_plot_over_time()  # Appends relevant scores to a DataFrame for plting
                 if loss is None:

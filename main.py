@@ -134,12 +134,12 @@ if __name__ == '__main__':
     model_hyperparameters = {
         "learning_rate": 0.000_05,
         "gamma": 0.92,
-        "model_architecture": [16, 16, 16],
+        "model_architecture": [64, 64, 64, 64, 64],
         "reward_for_all_dice": 5,
         "reward_factor_for_initial_dice_picked": 0.45,
         "reward_factor_for_picking_choice_correctly": 5.2,
-        "reward_factor_total_score": 1.7,
-        "reward_factor_chosen_score": 3.5,
+        "reward_factor_total_score": 3.5,
+        "reward_factor_chosen_score": 1.7,
         "punish_factor_not_picking_dice": -0.3,
         "punish_amount_for_incorrect_score_choice": -3,
         "batch_size": 400,
@@ -150,13 +150,13 @@ if __name__ == '__main__':
     start = time.perf_counter()
 
     # Train Model
-    epochs = 1_200 
+    epochs = 1_500 
     games_per_epoch = 64
-    training_runs = 4
-    model_name = "Test_bug_fixes_on_NNQ_results"
+    # training_runs = 4
+    model_name = "Bigger_model_test"
 
     yahtzee_player = NNQPlayer(show_figures=False, name=model_name, **model_hyperparameters)
-    yahtzee_player.run(epochs, games_per_epoch, save_results=True, save_model=True, verbose=False)
+    yahtzee_player.run(epochs, games_per_epoch, save_results=False, save_model=True, verbose=False)
     
     # check_all_variables(yahtzee_player)
   
