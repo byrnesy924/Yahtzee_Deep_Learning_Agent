@@ -132,9 +132,9 @@ if __name__ == '__main__':
 
     # Define hyperparameters of Yahtzee Model. These were rounded averages from HParameter testing:
     model_hyperparameters = {
-        "learning_rate": 0.000_05,
-        "gamma": 0.92,
-        "model_architecture": [64, 64, 64, 64, 64],
+        "learning_rate": 0.000_000_1,
+        "gamma": 0.88,
+        "model_architecture": [128, 128, 128, 128, 128, 128, 128, 128, 128, 128],
         "reward_for_all_dice": 5,
         "reward_factor_for_initial_dice_picked": 0.45,
         "reward_factor_for_picking_choice_correctly": 5.2,
@@ -143,14 +143,14 @@ if __name__ == '__main__':
         "punish_factor_not_picking_dice": -0.3,
         "punish_amount_for_incorrect_score_choice": -3,
         "batch_size": 400,
-        "buffer_size": 100,
-        "length_of_memory": 12_000,
+        "buffer_size": 400,
+        "length_of_memory": 20_000,
     }
 
     start = time.perf_counter()
 
     # Train Model
-    epochs = 1_500 
+    epochs = 1_200 
     games_per_epoch = 64
     # training_runs = 4
     model_name = "Bigger_model_test"
