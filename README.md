@@ -12,9 +12,9 @@
 
 
 # Yahtzee_AI: Overview of the Double Deep Q Learning Agent
-This project creates and trains a deep learning agent to play the game of Yatzhee. Yahtzee is primarily a game of chance, but also gives rise to complex tactics and strategies through player choice. Although the game is simple, the progressive nature of allocating dice rolls into a specific score choice means that the state space of the game is significant and increases exponentially with the number of players - there are 19 billion unique states in a single player game and $≈ (213·100)^n · 6^5· 3$ unique states in an n player game (Kang, Schroeder 2018) #TODO CHECK. It requires players to make both strategic and tactical decisions and balance their long term and short term interests.
+This project creates and trains a deep learning agent to play the game of Yatzhee. Yahtzee is primarily a game of chance, but also gives rise to complex tactics and strategies through player choice. Although the game is simple, the progressive nature of allocating dice rolls into a specific score choice means that the state space of the game is significant and increases exponentially with the number of players - there are 19 billion unique states in a single player game and $≈ (213·100)^n · 6^5· 3$ unique states in an n player game (Kang, Schroeder 2018). It requires players to make both strategic and tactical decisions and balance their long term and short term interests.
 
-After beginning development of this project and during research for it, I came across the following paper that takes a similar approach. Some other approaches and resources are listed below # TODO check language here.
+After beginning development of this project and during research for it, I came across the following paper that takes a similar approach. Some other approaches and resources are listed below
 [2018 stanford paper](https://web.stanford.edu/class/aa228/reports/2018/final75.pdf)
 [Yale publication and the work of James Glenn] https://raw.githubusercontent.com/philvasseur/Yahtzee-DQN-Thesis/dcf2bfe15c3b8c0ff3256f02dd3c0aabdbcbc9bb/webpage/final_report.pdf
 
